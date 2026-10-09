@@ -82,6 +82,25 @@ public sealed class VoiceService : IDisposable
         if (!_onlineUnavailable) _ = ListenOnlineAsync(_session);
     }
 
+    private static string Explain(Exception ex)
+    {
+        var code = $"0x{ex.HResult:X8}";
+        return unchecked((uint)ex.HResult) switch
+        {
+            0x80045509 => "Turn on Online speech recognition for clearer dictation: Windows Settings, Privacy & security, Speech. Using the basic recogniser for now.",
+            0x80070005 => "Windows blocked the microphone for desktop apps: Settings, Privacy & security, Microphone, turn on \"Let desktop apps access your microphone\". Using the basic recogniser for now.",
+            0x8004503A => "Your Windows speech language isn't installed: Settings, Time & language, Speech. Using the basic recogniser for now.",
+            0x80131501 or 0x80004005 => $"Windows speech recognition isn't ready ({code}); check the microphone and Online speech recognition in Settings, Privacy & security. Using the basic recogniser.",
+            _ => $"Windows speech recognition failed ({code}: {ex.Message.Trim()}). Using the basic recogniser. Details are in speech.log in her data folder."
+        };
+    }
+
+    private static void LogProblem(Exception ex)
+    {
+        try { File.AppendAllText(AppPaths.FileIn("speech.log"), $"{DateTime.Now:s}  0x{ex.HResult:X8}  {ex.GetType().Name}: {ex.Message}{Environment.NewLine}"); }
+        catch (IOException) { }
+    }
+
     /// <summary>One dictation with Windows' online recogniser. On any problem, falls back to the built-in dictation.</summary>
     private async Task ListenOnlineAsync(int session)
     {
@@ -103,12 +122,11 @@ public sealed class VoiceService : IDisposable
         {
             // 0x80045509: "Online speech recognition" is switched off in Windows privacy settings.
             lock (_gate) { _onlineUnavailable = true; }
+            LogProblem(ex);
             if (!_noticeShown)
             {
                 _noticeShown = true;
-                Notice?.Invoke(ex.HResult == unchecked((int)0x80045509)
-                    ? "For clearer speech recognition, turn on Online speech recognition: Windows Settings, Privacy & security, Speech."
-                    : "The modern speech recogniser isn't available, so I'm using the basic one.");
+                Notice?.Invoke(Explain(ex));
             }
             lock (_gate) { if (_listening && _session == session) Apply(); } // start the fallback dictation now
             return;
