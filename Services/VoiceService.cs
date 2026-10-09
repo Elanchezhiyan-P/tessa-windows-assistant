@@ -32,6 +32,9 @@ public sealed class VoiceService : IDisposable
     /// <summary>The language to listen in ("en-IN"...), or empty for the Windows default.</summary>
     public string SpeechLanguage { get; set; } = "";
 
+    /// <summary>How loud you are right now (0 to about 0.3), many times a second while she records. Drives the listening animation.</summary>
+    public event Action<double>? Level;
+
     /// <summary>A hint for the user (for example how to switch on online speech recognition).</summary>
     public event Action<string>? Notice;
 
@@ -96,7 +99,7 @@ public sealed class VoiceService : IDisposable
         try
         {
             recording = await MicRecorder.RecordUtteranceAsync(TimeSpan.FromSeconds(7), TimeSpan.FromSeconds(25),
-                () => { lock (_gate) return !_listening || _session != session; });
+                () => { lock (_gate) return !_listening || _session != session; }, rms => Level?.Invoke(rms));
         }
         catch (Exception ex) { LogProblem(ex); return false; }
 

@@ -8,14 +8,17 @@ namespace WinCompanion.Services;
 /// </summary>
 internal static class MicRecorder
 {
+    /// <param name="Peak">A typical loud moment of the recording (not a single click), 0 to 1.</param>
     public sealed record Recording(byte[]? Wav, double Peak, double Seconds, string Outcome);
 
-    public static async Task<Recording> RecordUtteranceAsync(TimeSpan firstWordTimeout, TimeSpan maxLength, Func<bool> cancelled)
+    public static async Task<Recording> RecordUtteranceAsync(TimeSpan firstWordTimeout, TimeSpan maxLength, Func<bool> cancelled,
+        Action<double>? onLevel = null)
     {
         var format = new WaveFormat(16000, 16, 1);
         var pcm = new MemoryStream();
         var finished = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        double noise = 0, peak = 0;
+        var peaks = new List<double>();
+        var noise = double.MaxValue;
         var buffers = 0;
         var speech = false;
         var start = DateTime.UtcNow;
@@ -24,22 +27,29 @@ internal static class MicRecorder
         using var wave = new WaveInEvent { WaveFormat = format, BufferMilliseconds = 100 };
         wave.DataAvailable += (_, e) =>
         {
+            buffers++;
+            // Many microphones make a loud click as they open. Ignore it, and keep it out of the recording.
+            if (buffers <= 2) return;
+
             pcm.Write(e.Buffer, 0, e.BytesRecorded);
             var count = e.BytesRecorded / 2;
-            double sum = 0;
+            double sum = 0, top = 0;
             for (var i = 0; i < count; i++)
             {
                 var v = BitConverter.ToInt16(e.Buffer, i * 2) / 32768.0;
                 sum += v * v;
-                if (Math.Abs(v) > peak) peak = Math.Abs(v);
+                if (Math.Abs(v) > top) top = Math.Abs(v);
             }
             var rms = Math.Sqrt(sum / Math.Max(1, count));
-            buffers++;
+            peaks.Add(top);
+            onLevel?.Invoke(rms);
 
-            // The first moments are assumed to be background noise; speech must stand clearly above it.
-            if (buffers <= 3) { noise = Math.Max(noise, rms); return; }
+            // The quietest moment so far is the background noise; speech must stand clearly above it, but never needs to be
+            // shouted: the bar is capped low, so a soft voice on a laptop microphone still counts.
+            noise = Math.Min(noise, rms);
+            var threshold = Math.Clamp(noise * 3, 0.0035, 0.012);
             var now = DateTime.UtcNow;
-            if (rms > Math.Max(0.004, noise * 2.5)) { speech = true; lastVoice = now; }
+            if (rms > threshold) { speech = true; lastVoice = now; }
 
             if (speech && now - lastVoice > TimeSpan.FromSeconds(1.2)) finished.TrySetResult("done");
             else if (!speech && now - start > firstWordTimeout) finished.TrySetResult("silence");
@@ -55,15 +65,22 @@ internal static class MicRecorder
         try { wave.StopRecording(); } catch (Exception) { /* already stopped */ }
 
         var seconds = (DateTime.UtcNow - start).TotalSeconds;
+        var typicalPeak = 0.0;
+        if (peaks.Count > 0)
+        {
+            peaks.Sort();
+            typicalPeak = peaks[(int)(0.98 * (peaks.Count - 1))];
+        }
+
         if (!speech || outcome is "cancelled" or "silence" || outcome.StartsWith("error"))
-            return new Recording(null, peak, seconds, outcome);
-        return new Recording(ToWav(pcm.ToArray(), format, peak), peak, seconds, outcome);
+            return new Recording(null, typicalPeak, seconds, outcome);
+        return new Recording(ToWav(pcm.ToArray(), format, typicalPeak), typicalPeak, seconds, outcome);
     }
 
-    private static byte[] ToWav(byte[] pcm, WaveFormat format, double peak)
+    private static byte[] ToWav(byte[] pcm, WaveFormat format, double typicalPeak)
     {
-        // Bring a quiet recording up to a healthy level (never more than 30x, and clipping is prevented).
-        var gain = peak > 0.0001 ? Math.Min(30.0, 0.8 / peak) : 1.0;
+        // Bring a quiet recording up to a healthy level (never more than 30x; clipping is prevented sample by sample).
+        var gain = typicalPeak is > 0.0005 and < 0.6 ? Math.Min(30.0, 0.7 / typicalPeak) : 1.0;
         if (gain > 1.2)
         {
             for (var i = 0; i + 1 < pcm.Length; i += 2)

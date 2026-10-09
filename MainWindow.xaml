@@ -246,6 +246,9 @@
             <!-- Suggestions for the current app -->
             <WrapPanel x:Name="Chips" Grid.Row="2" Margin="18,2,18,0" />
 
+            <!-- Shown while she is listening (and while she works out what you said) -->
+            <Border x:Name="ListeningHost" Grid.Row="2" Margin="18,2,18,2" Visibility="Collapsed" />
+
             <!-- Approval card for risky actions -->
             <Border x:Name="ConfirmCard" Grid.Row="3" Margin="14,4,14,4" Padding="14,12" CornerRadius="12"
                     Background="#33FFB454" BorderBrush="#66FFB454" BorderThickness="1" Visibility="Collapsed">

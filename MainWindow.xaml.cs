@@ -62,13 +62,22 @@ public partial class MainWindow : Window
         {
             _speaker.SpeakAsyncCancelAll();
             ShowAndFocus();
-            Status.Text = "Listening…";
+            SetListening(true);
+            Status.Text = "";
         });
         _voice.GeminiSpeechAvailable = () => _appSettings.SpeechViaGemini && !_appSettings.UseLocal
                                              && !string.IsNullOrWhiteSpace(_settings.LoadApiKey());
         _voice.GeminiTranscribe = async wav => await GeminiSpeech.TranscribeAsync(_settings.LoadApiKey()!, wav);
-        _voice.Notice += message => Dispatcher.Invoke(() => Status.Text = message);
-        _voice.ListeningEnded += () => Dispatcher.Invoke(() => { if (!_thinkingTimer.IsEnabled) Status.Text = ""; });
+        _voice.Notice += message => Dispatcher.Invoke(() =>
+        {
+            if (message.StartsWith("Understanding")) _listeningOrb.Label = message; else Status.Text = message;
+        });
+        _voice.Level += rms => Dispatcher.InvokeAsync(() => _listeningOrb.SetLevel(rms));
+        _voice.ListeningEnded += () => Dispatcher.Invoke(() =>
+        {
+            SetListening(false);
+            if (!_thinkingTimer.IsEnabled) Status.Text = "";
+        });
         _voice.CommandHeard += text => Dispatcher.InvokeAsync(() => SubmitAsync(text, spoken: true));
 
         // Reminders are checked against the clock every second, with no AI involved.
@@ -218,7 +227,7 @@ public partial class MainWindow : Window
         var showHistory = !_settingsOpen && _historyOpen && Messages.Children.Count > 0;
         Scroll.Visibility = showHistory ? Visibility.Visible : Visibility.Collapsed;
         SettingsPanel.Visibility = _settingsOpen ? Visibility.Visible : Visibility.Collapsed;
-        Chips.Visibility = _settingsOpen ? Visibility.Collapsed : Visibility.Visible;
+        Chips.Visibility = _settingsOpen || _listeningActive ? Visibility.Collapsed : Visibility.Visible;
         ToggleButton.Content = _historyOpen ? "" : ""; // chevron down = collapse, up = expand
         Dispatcher.BeginInvoke(() => SmoothScroll.ScrollToEnd(Scroll), DispatcherPriority.Background);
     }
@@ -509,6 +518,18 @@ public partial class MainWindow : Window
     }
 
     private FrameworkElement? _typing;
+    private readonly ListeningIndicator _listeningOrb = new();
+    private bool _listeningActive;
+
+    private void SetListening(bool on)
+    {
+        _listeningActive = on;
+        if (ListeningHost.Child is null) ListeningHost.Child = _listeningOrb;
+        if (on) _listeningOrb.Label = "Listening…";
+        ListeningHost.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (on) ListeningHost.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)));
+        RefreshLayout();
+    }
 
     private void SetBusy(bool busy)
     {
