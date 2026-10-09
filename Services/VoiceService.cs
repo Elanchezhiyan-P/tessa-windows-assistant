@@ -105,6 +105,7 @@ public sealed class VoiceService : IDisposable
     private async Task ListenOnlineAsync(int session)
     {
         string? text = null;
+        var lowConfidence = false;
         Windows.Media.SpeechRecognition.SpeechRecognizer? recognizer = null;
         try
         {
@@ -116,7 +117,12 @@ public sealed class VoiceService : IDisposable
             recognizer.Timeouts.InitialSilenceTimeout = TimeSpan.FromSeconds(7);
             recognizer.Timeouts.EndSilenceTimeout = TimeSpan.FromSeconds(1.4);
             var result = await recognizer.RecognizeAsync();
-            if (result.Status == Windows.Media.SpeechRecognition.SpeechRecognitionResultStatus.Success) text = result.Text?.Trim();
+            if (result.Status == Windows.Media.SpeechRecognition.SpeechRecognitionResultStatus.Success
+                && result.Confidence is Windows.Media.SpeechRecognition.SpeechRecognitionConfidence.High
+                    or Windows.Media.SpeechRecognition.SpeechRecognitionConfidence.Medium)
+                text = result.Text?.Trim();
+            else if (result.Status == Windows.Media.SpeechRecognition.SpeechRecognitionResultStatus.Success)
+                lowConfidence = true;
         }
         catch (Exception ex)
         {
@@ -141,6 +147,7 @@ public sealed class VoiceService : IDisposable
         if (!current) return;
         EndListening();
         if (!string.IsNullOrEmpty(text)) CommandHeard?.Invoke(text);
+        else if (lowConfidence) Notice?.Invoke("I didn't catch that clearly. Try again, a little closer to the microphone.");
     }
 
     private void EndListening()
@@ -201,6 +208,11 @@ public sealed class VoiceService : IDisposable
 
         var text = e.Result.Text.Trim();
         EndListening();
+        if (e.Result.Confidence < 0.6f)
+        {
+            Notice?.Invoke("I didn't catch that clearly. Try again, a little closer to the microphone.");
+            return;
+        }
         if (text.Length > 0) CommandHeard?.Invoke(text);
     }
 
