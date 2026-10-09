@@ -64,6 +64,9 @@ public partial class MainWindow : Window
             ShowAndFocus();
             Status.Text = "Listening…";
         });
+        _voice.GeminiSpeechAvailable = () => _appSettings.SpeechViaGemini && !_appSettings.UseLocal
+                                             && !string.IsNullOrWhiteSpace(_settings.LoadApiKey());
+        _voice.GeminiTranscribe = async wav => await GeminiSpeech.TranscribeAsync(_settings.LoadApiKey()!, wav);
         _voice.Notice += message => Dispatcher.Invoke(() => Status.Text = message);
         _voice.ListeningEnded += () => Dispatcher.Invoke(() => { if (!_thinkingTimer.IsEnabled) Status.Text = ""; });
         _voice.CommandHeard += text => Dispatcher.InvokeAsync(() => SubmitAsync(text, spoken: true));
@@ -147,6 +150,7 @@ public partial class MainWindow : Window
         TabAi.IsChecked = true;
         MuteSwitch.IsChecked = _appSettings.VoiceMuted;
         SpeechLangBox.Text = _appSettings.SpeechLanguage;
+        GeminiSpeechSwitch.IsChecked = _appSettings.SpeechViaGemini;
         AboutName.Text = _appSettings.AssistantName;
         AboutVersion.Text = "Version " + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0");
         ProfileName.Text = _appSettings.UserName;
@@ -328,6 +332,7 @@ public partial class MainWindow : Window
         _appSettings.SetProfile(ProfileName.Text, ProfileNick.Text, AssistantNameBox.Text, VoiceMaleSeg.IsChecked == true);
         _appSettings.VoiceMuted = MuteSwitch.IsChecked == true;
         _appSettings.SpeechLanguage = SpeechLangBox.Text.Trim();
+        _appSettings.SpeechViaGemini = GeminiSpeechSwitch.IsChecked == true;
         if (_appSettings.VoiceMuted) _speaker.SpeakAsyncCancelAll();
         UpdateMuteButton();
         _appSettings.Save();

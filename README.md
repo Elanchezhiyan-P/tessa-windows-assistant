@@ -141,9 +141,10 @@ build\build-release.ps1          # publish a self-contained build and make the i
 
 ## Troubleshooting
 
-- **Speech isn't converted to the right words:** turn on *Online speech recognition* in Windows Settings, Privacy & security, Speech, and set your
-  speech language under Time & language, Speech. She uses the same recogniser as Windows voice typing, which copes with accents much better
-  than the basic one (used only if that setting is off). Push-to-talk (Ctrl+Alt+V) is more reliable than the wake phrase.
+- **Speech isn't converted to the right words:** with Gemini selected she records each phrase and has Gemini turn it into text, which copes with accents far
+  better than Windows. Keep *Settings, You and her, Use Gemini to understand my voice* on. If it says it can barely hear you, raise the microphone level in
+  Windows Settings, System, Sound, Input. With a local model (or that switch off) she uses Windows' own recognition: turn on *Online speech recognition* in
+  Privacy & security, Speech, and set the language box (for example `en-IN`). Push-to-talk (Ctrl+Alt+V) is more reliable than the wake phrase.
 - **Nothing happens on Ctrl+Alt+Space:** another program may own the shortcut; use the tray icon. A message appears when this happens.
 - **"Can't reach the local model server":** start Ollama / LM Studio, then press **Detect** in Settings.
 - **Local model is slow or ignores tools:** use a model that supports tool calling and has enough memory; 3B models work but are limited.

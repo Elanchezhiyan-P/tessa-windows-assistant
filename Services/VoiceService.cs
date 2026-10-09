@@ -25,6 +25,10 @@ public sealed class VoiceService : IDisposable
     private bool _noticeShown;
     private int _session;                // identifies the current dictation window, so a late result from an old one is ignored
 
+    /// <summary>Set by the window: whether Gemini can transcribe right now, and how.</summary>
+    public Func<bool>? GeminiSpeechAvailable { get; set; }
+    public Func<byte[], Task<string?>>? GeminiTranscribe { get; set; }
+
     /// <summary>The language to listen in ("en-IN"...), or empty for the Windows default.</summary>
     public string SpeechLanguage { get; set; } = "";
 
@@ -85,6 +89,58 @@ public sealed class VoiceService : IDisposable
         if (!_onlineUnavailable) _ = ListenOnlineAsync(_session);
     }
 
+    /// <summary>Records the phrase ourselves and has Gemini transcribe it. Returns false when the caller should try Windows' recogniser instead.</summary>
+    private async Task<bool> ListenWithGeminiAsync(int session)
+    {
+        MicRecorder.Recording recording;
+        try
+        {
+            recording = await MicRecorder.RecordUtteranceAsync(TimeSpan.FromSeconds(7), TimeSpan.FromSeconds(25),
+                () => { lock (_gate) return !_listening || _session != session; });
+        }
+        catch (Exception ex) { LogProblem(ex); return false; }
+
+        Log($"gemini-mode outcome={recording.Outcome} peak={recording.Peak:F3} seconds={recording.Seconds:F1}");
+        if (recording.Outcome.StartsWith("error")) return false; // no usable microphone path: let Windows' recogniser try
+
+        bool current;
+        lock (_gate) { current = _listening && _session == session; }
+        if (!current) return true;
+
+        if (recording.Wav is null)
+        {
+            EndListening();
+            Notice?.Invoke(recording.Peak < 0.01
+                ? "I can barely hear the microphone. Raise the input level in Windows Settings, System, Sound, Input."
+                : "I didn't hear anything. Check that the right microphone is selected in Windows Settings, System, Sound, Input.");
+            return true;
+        }
+
+        string? text;
+        try
+        {
+            Notice?.Invoke("Understanding…");
+            text = await GeminiTranscribe!(recording.Wav);
+        }
+        catch (Exception ex)
+        {
+            Log($"gemini transcription failed: {ex.Message}");
+            EndListening();
+            Notice?.Invoke("Couldn't reach Gemini to understand that (" + ex.Message + "). Try again.");
+            return true;
+        }
+
+        text = text?.Trim().Trim('"', '“', '”').Trim();
+        EndListening();
+        if (string.IsNullOrEmpty(text) || text.Equals("[none]", StringComparison.OrdinalIgnoreCase))
+        {
+            Notice?.Invoke("I didn't catch that. Try again, a little closer to the microphone.");
+            return true;
+        }
+        CommandHeard?.Invoke(text);
+        return true;
+    }
+
     private Windows.Media.SpeechRecognition.SpeechRecognizer CreateRecognizer()
     {
         var tag = SpeechLanguage.Trim();
@@ -120,6 +176,8 @@ public sealed class VoiceService : IDisposable
     /// <summary>One dictation with Windows' online recogniser. On any problem, falls back to the built-in dictation.</summary>
     private async Task ListenOnlineAsync(int session)
     {
+        if (GeminiSpeechAvailable?.Invoke() == true && GeminiTranscribe is not null && await ListenWithGeminiAsync(session)) return;
+
         string? text = null;
         var lowConfidence = false;
         var nothingHeard = false;

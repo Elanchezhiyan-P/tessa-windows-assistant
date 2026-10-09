@@ -42,6 +42,8 @@ public sealed class AppSettings
     public bool VoiceMuted { get; set; }
     /// <summary>Language she listens in (a tag such as "en-IN" or "en-US"). Empty: whatever Windows is set to.</summary>
     public string SpeechLanguage { get; set; } = "";
+    /// <summary>With Gemini selected, send each recorded phrase to Gemini to be turned into text (more accurate; the audio leaves the PC).</summary>
+    public bool SpeechViaGemini { get; set; } = true;
     /// <summary>False until the first-run welcome has been completed or skipped.</summary>
     public bool SetupDone { get; set; }
 

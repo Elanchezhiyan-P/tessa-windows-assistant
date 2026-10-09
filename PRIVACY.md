@@ -36,6 +36,7 @@ With **Local**, requests go only to the server address you set (normally `localh
 
 ## Other network use
 
+- **Voice (Gemini selected):** when *Use Gemini to understand my voice* is on (the default), each phrase you say after pressing the talk key or the wake word is recorded and sent to Google's Gemini to be turned into text. Nothing is recorded or sent until you start talking to her, and recordings are not saved. Turn it off in *Settings, You and her* to use Windows' own speech recognition instead (which may also use Microsoft's online service). With a local model, voice never goes to Gemini.
 - **Web lookup** (when the AI needs current facts) sends only the search words to <https://duckduckgo.com> and reads back the top results.
 - **Weather** asks <https://wttr.in> for the city you name (or, with no city, your approximate location by IP address).
 - **Web search** opens your browser at a search page; the app itself sends nothing.
