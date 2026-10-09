@@ -47,7 +47,12 @@ internal static class SmoothScroll
     }
 
     /// <summary>Glides to the bottom (used when a new message arrives).</summary>
-    public static void ScrollToEnd(ScrollViewer viewer) => AnimateTo(viewer, viewer.ScrollableHeight, 320);
+    public static void ScrollToEnd(ScrollViewer viewer)
+    {
+        // Not measured yet (the window was hidden): jump, there is nothing to glide over.
+        if (!viewer.IsVisible || viewer.ScrollableHeight <= 0) { viewer.ScrollToBottom(); return; }
+        AnimateTo(viewer, viewer.ScrollableHeight, 320);
+    }
 
     private static void AnimateTo(ScrollViewer viewer, double target, int milliseconds)
     {

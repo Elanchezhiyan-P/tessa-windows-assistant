@@ -137,6 +137,8 @@ public partial class MainWindow : Window
 
         Show();
         Activate();
+        // Once the window has been measured, jump straight to the newest message (instantly, so it never opens showing the oldest).
+        if (wasHidden) Dispatcher.BeginInvoke(() => { Scroll.UpdateLayout(); Scroll.ScrollToBottom(); }, DispatcherPriority.Loaded);
         if (_settingsOpen) return;
         Input.Focus();
         if (wasHidden) PlayShowAnimation();
