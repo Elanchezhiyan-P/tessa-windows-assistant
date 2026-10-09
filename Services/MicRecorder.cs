@@ -9,7 +9,7 @@ namespace WinCompanion.Services;
 internal static class MicRecorder
 {
     /// <param name="Peak">A typical loud moment of the recording (not a single click), 0 to 1.</param>
-    public sealed record Recording(byte[]? Wav, double Peak, double Seconds, string Outcome);
+    public sealed record Recording(byte[]? Wav, double Peak, double Seconds, string Outcome, string Detail = "");
 
     public static async Task<Recording> RecordUtteranceAsync(TimeSpan firstWordTimeout, TimeSpan maxLength, Func<bool> cancelled,
         Action<double>? onLevel = null)
@@ -23,6 +23,7 @@ internal static class MicRecorder
         var speech = false;
         var start = DateTime.UtcNow;
         var lastVoice = start;
+        double speechLevel = 0;
 
         using var wave = new WaveInEvent { WaveFormat = format, BufferMilliseconds = 100 };
         wave.DataAvailable += (_, e) =>
@@ -46,12 +47,16 @@ internal static class MicRecorder
 
             // The quietest moment so far is the background noise; speech must stand clearly above it, but never needs to be
             // shouted: the bar is capped low, so a soft voice on a laptop microphone still counts.
-            noise = Math.Min(noise, rms);
-            var threshold = Math.Clamp(noise * 3, 0.0035, 0.012);
+            noise = Math.Min(rms, noise * 1.02); // follows the quiet moments, and creeps up so a noisy room can't pin it low forever
+            var threshold = Math.Clamp(noise * 3, 0.0035, 0.03);
             var now = DateTime.UtcNow;
-            if (rms > threshold) { speech = true; lastVoice = now; }
 
-            if (speech && now - lastVoice > TimeSpan.FromSeconds(1.2)) finished.TrySetResult("done");
+            // How loud you have been speaking (quick to rise, slow to fall). The end of a sentence is when you drop well below it.
+            if (rms > threshold) { speech = true; speechLevel = Math.Max(rms, speechLevel * 0.97); }
+            var quiet = rms <= threshold || (speech && rms < speechLevel * 0.35);
+            if (!quiet) lastVoice = now;
+
+            if (speech && now - lastVoice > TimeSpan.FromSeconds(1.1)) finished.TrySetResult("done");
             else if (!speech && now - start > firstWordTimeout) finished.TrySetResult("silence");
             else if (now - start > maxLength) finished.TrySetResult("done");
             else if (cancelled()) finished.TrySetResult("cancelled");
@@ -65,6 +70,7 @@ internal static class MicRecorder
         try { wave.StopRecording(); } catch (Exception) { /* already stopped */ }
 
         var seconds = (DateTime.UtcNow - start).TotalSeconds;
+        var detail = $"noise={noise:F4} voice={speechLevel:F4}";
         var typicalPeak = 0.0;
         if (peaks.Count > 0)
         {
@@ -73,8 +79,8 @@ internal static class MicRecorder
         }
 
         if (!speech || outcome is "cancelled" or "silence" || outcome.StartsWith("error"))
-            return new Recording(null, typicalPeak, seconds, outcome);
-        return new Recording(ToWav(pcm.ToArray(), format, typicalPeak), typicalPeak, seconds, outcome);
+            return new Recording(null, typicalPeak, seconds, outcome, detail);
+        return new Recording(ToWav(pcm.ToArray(), format, typicalPeak), typicalPeak, seconds, outcome, detail);
     }
 
     private static byte[] ToWav(byte[] pcm, WaveFormat format, double typicalPeak)

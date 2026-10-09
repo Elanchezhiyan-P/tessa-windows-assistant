@@ -85,7 +85,7 @@ public sealed class VoiceService : IDisposable
             _listening = true;
             _session++;
             _timeout = new System.Threading.Timer(_ => EndListening(), null,
-                _onlineUnavailable ? DictationTimeout : TimeSpan.FromSeconds(25), Timeout.InfiniteTimeSpan);
+                _onlineUnavailable ? DictationTimeout : TimeSpan.FromSeconds(45), Timeout.InfiniteTimeSpan);
             Apply();
         }
         ListeningStarted?.Invoke();
@@ -98,12 +98,12 @@ public sealed class VoiceService : IDisposable
         MicRecorder.Recording recording;
         try
         {
-            recording = await MicRecorder.RecordUtteranceAsync(TimeSpan.FromSeconds(7), TimeSpan.FromSeconds(25),
+            recording = await MicRecorder.RecordUtteranceAsync(TimeSpan.FromSeconds(7), TimeSpan.FromSeconds(15),
                 () => { lock (_gate) return !_listening || _session != session; }, rms => Level?.Invoke(rms));
         }
         catch (Exception ex) { LogProblem(ex); return false; }
 
-        Log($"gemini-mode outcome={recording.Outcome} peak={recording.Peak:F3} seconds={recording.Seconds:F1}");
+        Log($"gemini-mode outcome={recording.Outcome} peak={recording.Peak:F3} seconds={recording.Seconds:F1} {recording.Detail}");
         if (recording.Outcome.StartsWith("error")) return false; // no usable microphone path: let Windows' recogniser try
 
         bool current;
