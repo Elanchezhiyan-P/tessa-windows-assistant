@@ -106,6 +106,7 @@ public sealed class VoiceService : IDisposable
     {
         string? text = null;
         var lowConfidence = false;
+        var nothingHeard = false;
         Windows.Media.SpeechRecognition.SpeechRecognizer? recognizer = null;
         try
         {
@@ -117,6 +118,20 @@ public sealed class VoiceService : IDisposable
             recognizer.Timeouts.InitialSilenceTimeout = TimeSpan.FromSeconds(7);
             recognizer.Timeouts.EndSilenceTimeout = TimeSpan.FromSeconds(1.4);
             var result = await recognizer.RecognizeAsync();
+            Log($"status={result.Status} confidence={result.Confidence} heard={(string.IsNullOrWhiteSpace(result.Text) ? "nothing" : "text")}");
+            switch (result.Status)
+            {
+                case Windows.Media.SpeechRecognition.SpeechRecognitionResultStatus.Success:
+                    break;
+                case Windows.Media.SpeechRecognition.SpeechRecognitionResultStatus.TimeoutExceeded:
+                case Windows.Media.SpeechRecognition.SpeechRecognitionResultStatus.PauseLimitExceeded:
+                case Windows.Media.SpeechRecognition.SpeechRecognitionResultStatus.UserCanceled:
+                    nothingHeard = true;
+                    break;
+                default:
+                    // Microphone unavailable, no network, unsupported language...: not a normal "silence", so switch to the basic recogniser.
+                    throw new InvalidOperationException("Windows speech recognition returned " + result.Status);
+            }
             if (result.Status == Windows.Media.SpeechRecognition.SpeechRecognitionResultStatus.Success
                 && result.Confidence is Windows.Media.SpeechRecognition.SpeechRecognitionConfidence.High
                     or Windows.Media.SpeechRecognition.SpeechRecognitionConfidence.Medium)
@@ -148,6 +163,13 @@ public sealed class VoiceService : IDisposable
         EndListening();
         if (!string.IsNullOrEmpty(text)) CommandHeard?.Invoke(text);
         else if (lowConfidence) Notice?.Invoke("I didn't catch that clearly. Try again, a little closer to the microphone.");
+        else if (nothingHeard) Notice?.Invoke("I didn't hear anything. Check that the right microphone is selected in Windows Settings, System, Sound, Input.");
+    }
+
+    private static void Log(string line)
+    {
+        try { File.AppendAllText(AppPaths.FileIn("speech.log"), $"{DateTime.Now:s}  {line}{Environment.NewLine}"); }
+        catch (IOException) { }
     }
 
     private void EndListening()
