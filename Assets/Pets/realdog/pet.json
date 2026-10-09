@@ -1,0 +1,27 @@
+{
+  "name": "Real Dog",
+  "kind": "walker",
+  "facing": "right",
+  "frameWidth": 331,
+  "frameHeight": 220,
+  "scale": 0.591,
+  "smooth": true,
+  "glow": false,
+  "sort": 1,
+  "sheet": "sheet.png",
+  "credit": "Dog walking on a rural road, Pexels (free licence): pexels.com/video/lonely-dog-walking-on-rural-road-in-sunny-day-36040950",
+  "animations": {
+    "walk": {
+      "row": 0,
+      "frames": 16,
+      "fps": 15.0
+    },
+    "idle": {
+      "row": 1,
+      "frames": 1,
+      "fps": 1
+    }
+  },
+  "speed": 150,
+  "playback": 1.0
+}

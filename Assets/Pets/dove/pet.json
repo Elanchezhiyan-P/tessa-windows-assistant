@@ -1,0 +1,24 @@
+{
+  "name": "Pixel Dove",
+  "kind": "flyer",
+  "scale": 3,
+  "credit": "Bird sprites by MoikMellah (opengameart.org/content/animated-birds-32x32), CC0",
+  "facing": "left",
+  "glow": true,
+  "sort": 20,
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "sheet": "sheet.png",
+  "animations": {
+    "fly": {
+      "row": 0,
+      "frames": 5,
+      "fps": 10
+    },
+    "idle": {
+      "row": 1,
+      "frames": 1,
+      "fps": 10
+    }
+  }
+}

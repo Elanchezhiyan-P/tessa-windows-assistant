@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+
+    <!-- Identity shown in file properties, Task Manager and the installer -->
+    <AssemblyName>WinCompanion</AssemblyName>
+    <Product>Tessa</Product>
+    <Description>A desktop AI companion: chat, voice, reminders and PC automation, with Gemini or a local model.</Description>
+    <Company>Elanchezhiyan P</Company>
+    <Authors>Elanchezhiyan P</Authors>
+    <PackageProjectUrl>https://codebyelan.in</PackageProjectUrl>
+    <Copyright>Copyright (c) 2026 Elanchezhiyan P</Copyright>
+    <Version>1.0.0</Version>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Nullable>enable</Nullable>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WPF and WinForms share type names (Application, MessageBox...); keep WPF as the default. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Built-in characters (sprite sheets + pet.json); copied next to the exe so users can inspect or replace them. -->
+    <Content Include="Assets\Pets\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Speech" Version="8.0.0" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,29 @@
+{
+  "name": "Cartoon Dog",
+  "kind": "walker",
+  "facing": "left",
+  "frameWidth": 160,
+  "frameHeight": 120,
+  "scale": 0.85,
+  "smooth": true,
+  "sort": 10,
+  "sheet": "sheet.png",
+  "credit": "Drawn for WinCompanion (cartoon style)",
+  "animations": {
+    "walk": {
+      "row": 0,
+      "frames": 8,
+      "fps": 12
+    },
+    "idle": {
+      "row": 1,
+      "frames": 4,
+      "fps": 6
+    },
+    "alert": {
+      "row": 2,
+      "frames": 2,
+      "fps": 5
+    }
+  }
+}

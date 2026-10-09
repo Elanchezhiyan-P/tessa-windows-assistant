@@ -1,0 +1,27 @@
+{
+  "name": "Real Puppy (running)",
+  "kind": "walker",
+  "facing": "left",
+  "frameWidth": 313,
+  "frameHeight": 220,
+  "scale": 0.591,
+  "smooth": true,
+  "glow": true,
+  "sort": 5,
+  "sheet": "sheet.png",
+  "credit": "Black poodle puppy running, Pexels (free licence): pexels.com/video/side-view-of-a-black-dog-running-by-the-sea-11967567",
+  "animations": {
+    "walk": {
+      "row": 0,
+      "frames": 7,
+      "fps": 24.0
+    },
+    "idle": {
+      "row": 1,
+      "frames": 1,
+      "fps": 1
+    }
+  },
+  "speed": 250,
+  "playback": 0.55
+}

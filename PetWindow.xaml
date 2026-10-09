@@ -1,0 +1,46 @@
+<Window x:Class="WinCompanion.PetWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Tessa pet" Width="340" Height="300"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ShowInTaskbar="False" ShowActivated="False" Topmost="True" ResizeMode="NoResize"
+        Focusable="False" FontFamily="{StaticResource UiFont}" UseLayoutRounding="True">
+    <Grid x:Name="Layout">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Speech bubble: a rounded card with a small tail pointing at the character -->
+        <StackPanel x:Name="BubbleHost" Grid.Row="0" Opacity="0" Visibility="Collapsed"
+                    HorizontalAlignment="Center" VerticalAlignment="Bottom">
+            <Border x:Name="Bubble" Background="#F2191A1E" BorderBrush="#66FFFFFF" BorderThickness="1"
+                    CornerRadius="14" Padding="14,12" MaxWidth="300" MinWidth="200">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="16" ShadowDepth="2" Opacity="0.45" />
+                </Border.Effect>
+                <StackPanel>
+                    <TextBlock Text="⏰  Reminder" Foreground="{StaticResource Accent}" FontSize="12" FontWeight="SemiBold" />
+                    <TextBlock x:Name="MessageText" Foreground="{StaticResource Fg}" FontSize="15"
+                               TextWrapping="Wrap" Margin="0,6,0,12" MaxHeight="80" TextTrimming="CharacterEllipsis" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="DoneButton" Style="{StaticResource PrimaryButton}" Content="Done" Click="Done_Click" />
+                        <Button x:Name="SnoozeButton" Style="{StaticResource GhostButton}" Content="Snooze 5 min"
+                                Margin="8,0,0,0" Click="Snooze_Click" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            <Polygon x:Name="Tail" Points="0,0 18,0 9,10" Fill="#F2191A1E" HorizontalAlignment="Center" />
+        </StackPanel>
+
+        <Image x:Name="Sprite" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+               RenderOptions.BitmapScalingMode="NearestNeighbor" RenderTransformOrigin="0.5,1">
+            <Image.RenderTransform>
+                <TransformGroup>
+                    <ScaleTransform x:Name="Flip" ScaleX="1" />
+                    <ScaleTransform x:Name="Breath" ScaleY="1" />
+                </TransformGroup>
+            </Image.RenderTransform>
+        </Image>
+    </Grid>
+</Window>

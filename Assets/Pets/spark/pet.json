@@ -1,0 +1,29 @@
+{
+  "name": "Mecha Spark",
+  "kind": "walker",
+  "facing": "left",
+  "frameWidth": 150,
+  "frameHeight": 150,
+  "scale": 0.8,
+  "smooth": true,
+  "sort": 11,
+  "sheet": "sheet.png",
+  "credit": "Original character drawn for WinCompanion (not based on any existing character)",
+  "animations": {
+    "walk": {
+      "row": 0,
+      "frames": 8,
+      "fps": 12
+    },
+    "idle": {
+      "row": 1,
+      "frames": 4,
+      "fps": 4
+    },
+    "alert": {
+      "row": 2,
+      "frames": 4,
+      "fps": 6
+    }
+  }
+}

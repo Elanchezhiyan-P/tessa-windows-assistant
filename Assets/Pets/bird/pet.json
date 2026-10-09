@@ -1,0 +1,24 @@
+{
+  "name": "Cartoon Bird",
+  "kind": "flyer",
+  "facing": "left",
+  "frameWidth": 160,
+  "frameHeight": 120,
+  "scale": 0.85,
+  "smooth": true,
+  "sort": 10,
+  "sheet": "sheet.png",
+  "credit": "Drawn for WinCompanion (cartoon style)",
+  "animations": {
+    "fly": {
+      "row": 0,
+      "frames": 8,
+      "fps": 14
+    },
+    "idle": {
+      "row": 1,
+      "frames": 1,
+      "fps": 14
+    }
+  }
+}

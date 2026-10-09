@@ -1,0 +1,27 @@
+{
+  "name": "Real Cat",
+  "kind": "walker",
+  "facing": "right",
+  "frameWidth": 292,
+  "frameHeight": 220,
+  "scale": 0.591,
+  "smooth": true,
+  "glow": false,
+  "sort": 0,
+  "sheet": "sheet.png",
+  "credit": "Ginger cat walking by Roman Odintsov, Pexels (free licence): pexels.com/video/cat-walking-around-6543588",
+  "animations": {
+    "walk": {
+      "row": 0,
+      "frames": 24,
+      "fps": 14.39
+    },
+    "idle": {
+      "row": 1,
+      "frames": 1,
+      "fps": 1
+    }
+  },
+  "speed": 110,
+  "playback": 1.5
+}

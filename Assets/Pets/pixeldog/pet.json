@@ -1,0 +1,29 @@
+{
+  "name": "Pixel Dog",
+  "kind": "walker",
+  "scale": 9,
+  "credit": "Dog sprites by Shepardskin (opengameart.org/content/dog-sprites), CC0",
+  "facing": "left",
+  "glow": true,
+  "sort": 20,
+  "frameWidth": 16,
+  "frameHeight": 10,
+  "sheet": "sheet.png",
+  "animations": {
+    "walk": {
+      "row": 0,
+      "frames": 6,
+      "fps": 8
+    },
+    "idle": {
+      "row": 1,
+      "frames": 4,
+      "fps": 2
+    },
+    "alert": {
+      "row": 2,
+      "frames": 2,
+      "fps": 4
+    }
+  }
+}

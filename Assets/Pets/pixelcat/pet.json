@@ -1,0 +1,29 @@
+{
+  "name": "Pixel Cat",
+  "kind": "walker",
+  "scale": 4,
+  "credit": "Cat sprites by Shepardskin (opengameart.org/content/cat-sprites), CC0",
+  "facing": "left",
+  "glow": true,
+  "sort": 20,
+  "frameWidth": 40,
+  "frameHeight": 34,
+  "sheet": "sheet.png",
+  "animations": {
+    "walk": {
+      "row": 0,
+      "frames": 6,
+      "fps": 6
+    },
+    "run": {
+      "row": 1,
+      "frames": 6,
+      "fps": 10
+    },
+    "idle": {
+      "row": 2,
+      "frames": 1,
+      "fps": 1
+    }
+  }
+}

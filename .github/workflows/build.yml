@@ -1,0 +1,24 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build (warnings are errors)
+        run: dotnet build WinCompanion.csproj -c Release -warnaserror
+      - name: Check the character packs parse
+        shell: pwsh
+        run: |
+          Get-ChildItem Assets/Pets -Directory | ForEach-Object {
+            $json = Get-Content (Join-Path $_.FullName 'pet.json') -Raw | ConvertFrom-Json
+            if (-not (Test-Path (Join-Path $_.FullName $json.sheet))) { throw "$($_.Name): sheet missing" }
+          }

@@ -1,0 +1,20 @@
+{
+  "name": "Real Cat (sitting)",
+  "kind": "sitter",
+  "facing": "right",
+  "frameWidth": 115,
+  "frameHeight": 220,
+  "scale": 0.682,
+  "smooth": true,
+  "glow": false,
+  "sort": 3,
+  "sheet": "sheet.png",
+  "credit": "Orange and white cat wearing a collar by Line Riedel, Pexels (free licence): pexels.com/video/an-orange-and-white-cat-wearing-a-collar-13279436",
+  "animations": {
+    "idle": {
+      "row": 0,
+      "frames": 31,
+      "fps": 12.5
+    }
+  }
+}

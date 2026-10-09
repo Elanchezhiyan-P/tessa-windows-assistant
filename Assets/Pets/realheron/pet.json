@@ -1,0 +1,25 @@
+{
+  "name": "Real Heron",
+  "kind": "flyer",
+  "facing": "left",
+  "frameWidth": 199,
+  "frameHeight": 220,
+  "scale": 0.682,
+  "smooth": true,
+  "glow": false,
+  "sort": 2,
+  "sheet": "sheet.png",
+  "credit": "Great Blue Heron taking off in slow motion, Pexels (free licence): pexels.com/video/great-blue-heron-taking-off-in-slow-motion-39008201",
+  "animations": {
+    "fly": {
+      "row": 0,
+      "frames": 19,
+      "fps": 15.0
+    },
+    "idle": {
+      "row": 1,
+      "frames": 1,
+      "fps": 1
+    }
+  }
+}

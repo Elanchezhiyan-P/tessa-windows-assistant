@@ -426,3 +426,15 @@ FodyWeavers.xsd
 
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
+
+# Tessa: build output, installers and local files that do not belong in git
+installer/Output/
+publish/
+/docs/
+*.docx
+*.pfx
+*.snk
+__pycache__/
+.claude/
+node_modules/
+launch-posts/
