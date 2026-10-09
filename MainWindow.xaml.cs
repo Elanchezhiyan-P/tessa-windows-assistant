@@ -146,6 +146,7 @@ public partial class MainWindow : Window
         PsAdmin.IsChecked = _appSettings.PowerShellAdmin;
         TabAi.IsChecked = true;
         MuteSwitch.IsChecked = _appSettings.VoiceMuted;
+        SpeechLangBox.Text = _appSettings.SpeechLanguage;
         AboutName.Text = _appSettings.AssistantName;
         AboutVersion.Text = "Version " + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0");
         ProfileName.Text = _appSettings.UserName;
@@ -326,6 +327,7 @@ public partial class MainWindow : Window
         _appSettings.Provider = local ? "local" : "gemini";
         _appSettings.SetProfile(ProfileName.Text, ProfileNick.Text, AssistantNameBox.Text, VoiceMaleSeg.IsChecked == true);
         _appSettings.VoiceMuted = MuteSwitch.IsChecked == true;
+        _appSettings.SpeechLanguage = SpeechLangBox.Text.Trim();
         if (_appSettings.VoiceMuted) _speaker.SpeakAsyncCancelAll();
         UpdateMuteButton();
         _appSettings.Save();
@@ -589,6 +591,7 @@ public partial class MainWindow : Window
         Title = _appSettings.AssistantName;
         HeaderText.Text = _appSettings.AssistantName;
         _voice.SetWakePhrase(_appSettings.WakePhrase);
+        _voice.SpeechLanguage = _appSettings.SpeechLanguage;
         try { _speaker.SelectVoiceByHints(_appSettings.VoiceGender == "male" ? System.Speech.Synthesis.VoiceGender.Male : System.Speech.Synthesis.VoiceGender.Female); }
         catch { /* keep the default voice */ }
         IdentityChanged?.Invoke();

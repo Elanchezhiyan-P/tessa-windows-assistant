@@ -40,6 +40,8 @@ public sealed class AppSettings
     public string VoiceGender { get; set; } = "female";
     /// <summary>True: she never speaks aloud (replies and reminders are text only).</summary>
     public bool VoiceMuted { get; set; }
+    /// <summary>Language she listens in (a tag such as "en-IN" or "en-US"). Empty: whatever Windows is set to.</summary>
+    public string SpeechLanguage { get; set; } = "";
     /// <summary>False until the first-run welcome has been completed or skipped.</summary>
     public bool SetupDone { get; set; }
 

@@ -25,6 +25,9 @@ public sealed class VoiceService : IDisposable
     private bool _noticeShown;
     private int _session;                // identifies the current dictation window, so a late result from an old one is ignored
 
+    /// <summary>The language to listen in ("en-IN"...), or empty for the Windows default.</summary>
+    public string SpeechLanguage { get; set; } = "";
+
     /// <summary>A hint for the user (for example how to switch on online speech recognition).</summary>
     public event Action<string>? Notice;
 
@@ -82,6 +85,19 @@ public sealed class VoiceService : IDisposable
         if (!_onlineUnavailable) _ = ListenOnlineAsync(_session);
     }
 
+    private Windows.Media.SpeechRecognition.SpeechRecognizer CreateRecognizer()
+    {
+        var tag = SpeechLanguage.Trim();
+        if (tag.Length > 0)
+        {
+            var supported = Windows.Media.SpeechRecognition.SpeechRecognizer.SupportedTopicLanguages
+                .FirstOrDefault(l => l.LanguageTag.Equals(tag, StringComparison.OrdinalIgnoreCase));
+            if (supported is not null) return new Windows.Media.SpeechRecognition.SpeechRecognizer(supported);
+            Notice?.Invoke($"Speech language \"{tag}\" isn't available on this PC, so I'm using Windows' default. Add it under Settings, Time & language, Language & region.");
+        }
+        return new Windows.Media.SpeechRecognition.SpeechRecognizer();
+    }
+
     private static string Explain(Exception ex)
     {
         var code = $"0x{ex.HResult:X8}";
@@ -110,7 +126,7 @@ public sealed class VoiceService : IDisposable
         Windows.Media.SpeechRecognition.SpeechRecognizer? recognizer = null;
         try
         {
-            recognizer = new Windows.Media.SpeechRecognition.SpeechRecognizer();
+            recognizer = CreateRecognizer();
             recognizer.Constraints.Add(new Windows.Media.SpeechRecognition.SpeechRecognitionTopicConstraint(Windows.Media.SpeechRecognition.SpeechRecognitionScenario.Dictation, "dictation"));
             var compiled = await recognizer.CompileConstraintsAsync();
             if (compiled.Status != Windows.Media.SpeechRecognition.SpeechRecognitionResultStatus.Success) throw new InvalidOperationException(compiled.Status.ToString());
@@ -126,6 +142,7 @@ public sealed class VoiceService : IDisposable
                 case Windows.Media.SpeechRecognition.SpeechRecognitionResultStatus.TimeoutExceeded:
                 case Windows.Media.SpeechRecognition.SpeechRecognitionResultStatus.PauseLimitExceeded:
                 case Windows.Media.SpeechRecognition.SpeechRecognitionResultStatus.UserCanceled:
+                case Windows.Media.SpeechRecognition.SpeechRecognitionResultStatus.Unknown:
                     nothingHeard = true;
                     break;
                 default:
