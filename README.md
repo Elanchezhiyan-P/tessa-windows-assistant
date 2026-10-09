@@ -141,6 +141,9 @@ build\build-release.ps1          # publish a self-contained build and make the i
 
 ## Troubleshooting
 
+- **Speech isn't converted to the right words:** turn on *Online speech recognition* in Windows Settings, Privacy & security, Speech, and set your
+  speech language under Time & language, Speech. She uses the same recogniser as Windows voice typing, which copes with accents much better
+  than the basic one (used only if that setting is off). Push-to-talk (Ctrl+Alt+V) is more reliable than the wake phrase.
 - **Nothing happens on Ctrl+Alt+Space:** another program may own the shortcut; use the tray icon. A message appears when this happens.
 - **"Can't reach the local model server":** start Ollama / LM Studio, then press **Detect** in Settings.
 - **Local model is slow or ignores tools:** use a model that supports tool calling and has enough memory; 3B models work but are limited.

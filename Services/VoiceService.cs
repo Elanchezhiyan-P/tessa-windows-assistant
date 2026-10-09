@@ -1,11 +1,14 @@
 using System.Speech.Recognition;
 
+
 namespace WinCompanion.Services;
 
 /// <summary>
-/// Windows speech recognition: an optional always-on wake phrase (for example "Hey Tessa"),
-/// plus a dictation window that opens after the wake phrase or on demand (push-to-talk hotkey).
-/// Events fire on a background thread.
+/// Speech input: an optional always-on wake phrase (for example "Hey Tessa") and a dictation window that opens after the
+/// wake phrase or on demand (push-to-talk hotkey). The wake phrase uses the small built-in recogniser (it only has to
+/// match one phrase). What you say after it goes to Windows' online speech recognition, the same service as Windows voice
+/// typing, which understands accents and everyday speech far better than the old built-in dictation. If that is switched
+/// off in Windows, the old dictation is used instead and a hint is shown. Events fire on a background thread.
 /// </summary>
 public sealed class VoiceService : IDisposable
 {
@@ -18,6 +21,12 @@ public sealed class VoiceService : IDisposable
     private Grammar? _wakeGrammar, _dictationGrammar;
     private System.Threading.Timer? _timeout;
     private bool _running, _listening, _wakeEnabled;
+    private bool _onlineUnavailable;     // the modern recogniser failed once: use the old dictation instead
+    private bool _noticeShown;
+    private int _session;                // identifies the current dictation window, so a late result from an old one is ignored
+
+    /// <summary>A hint for the user (for example how to switch on online speech recognition).</summary>
+    public event Action<string>? Notice;
 
     /// <summary>The dictation window opened (wake phrase heard or hotkey pressed).</summary>
     public event Action? ListeningStarted;
@@ -64,10 +73,56 @@ public sealed class VoiceService : IDisposable
         {
             if (_listening) return;
             _listening = true;
-            _timeout = new System.Threading.Timer(_ => EndListening(), null, DictationTimeout, Timeout.InfiniteTimeSpan);
+            _session++;
+            _timeout = new System.Threading.Timer(_ => EndListening(), null,
+                _onlineUnavailable ? DictationTimeout : TimeSpan.FromSeconds(25), Timeout.InfiniteTimeSpan);
             Apply();
         }
         ListeningStarted?.Invoke();
+        if (!_onlineUnavailable) _ = ListenOnlineAsync(_session);
+    }
+
+    /// <summary>One dictation with Windows' online recogniser. On any problem, falls back to the built-in dictation.</summary>
+    private async Task ListenOnlineAsync(int session)
+    {
+        string? text = null;
+        Windows.Media.SpeechRecognition.SpeechRecognizer? recognizer = null;
+        try
+        {
+            recognizer = new Windows.Media.SpeechRecognition.SpeechRecognizer();
+            recognizer.Constraints.Add(new Windows.Media.SpeechRecognition.SpeechRecognitionTopicConstraint(Windows.Media.SpeechRecognition.SpeechRecognitionScenario.Dictation, "dictation"));
+            var compiled = await recognizer.CompileConstraintsAsync();
+            if (compiled.Status != Windows.Media.SpeechRecognition.SpeechRecognitionResultStatus.Success) throw new InvalidOperationException(compiled.Status.ToString());
+
+            recognizer.Timeouts.InitialSilenceTimeout = TimeSpan.FromSeconds(7);
+            recognizer.Timeouts.EndSilenceTimeout = TimeSpan.FromSeconds(1.4);
+            var result = await recognizer.RecognizeAsync();
+            if (result.Status == Windows.Media.SpeechRecognition.SpeechRecognitionResultStatus.Success) text = result.Text?.Trim();
+        }
+        catch (Exception ex)
+        {
+            // 0x80045509: "Online speech recognition" is switched off in Windows privacy settings.
+            lock (_gate) { _onlineUnavailable = true; }
+            if (!_noticeShown)
+            {
+                _noticeShown = true;
+                Notice?.Invoke(ex.HResult == unchecked((int)0x80045509)
+                    ? "For clearer speech recognition, turn on Online speech recognition: Windows Settings, Privacy & security, Speech."
+                    : "The modern speech recogniser isn't available, so I'm using the basic one.");
+            }
+            lock (_gate) { if (_listening && _session == session) Apply(); } // start the fallback dictation now
+            return;
+        }
+        finally
+        {
+            recognizer?.Dispose();
+        }
+
+        bool current;
+        lock (_gate) { current = _listening && _session == session; }
+        if (!current) return;
+        EndListening();
+        if (!string.IsNullOrEmpty(text)) CommandHeard?.Invoke(text);
     }
 
     private void EndListening()
@@ -86,7 +141,7 @@ public sealed class VoiceService : IDisposable
     // Must be called with _gate held. Opens the mic only while something needs it.
     private void Apply()
     {
-        var shouldRun = _wakeEnabled || _listening;
+        var shouldRun = _wakeEnabled || (_listening && _onlineUnavailable);
         if (shouldRun && !_running)
         {
             EnsureEngine();
@@ -100,7 +155,7 @@ public sealed class VoiceService : IDisposable
         }
 
         if (_wakeGrammar is not null) _wakeGrammar.Enabled = _wakeEnabled && !_listening;
-        if (_dictationGrammar is not null) _dictationGrammar.Enabled = _listening;
+        if (_dictationGrammar is not null) _dictationGrammar.Enabled = _listening && _onlineUnavailable;
     }
 
     private void EnsureEngine()

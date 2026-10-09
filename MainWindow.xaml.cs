@@ -64,6 +64,7 @@ public partial class MainWindow : Window
             ShowAndFocus();
             Status.Text = "Listening…";
         });
+        _voice.Notice += message => Dispatcher.Invoke(() => Status.Text = message);
         _voice.ListeningEnded += () => Dispatcher.Invoke(() => { if (!_thinkingTimer.IsEnabled) Status.Text = ""; });
         _voice.CommandHeard += text => Dispatcher.InvokeAsync(() => SubmitAsync(text, spoken: true));
 
