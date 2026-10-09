@@ -23,6 +23,7 @@ public sealed class VoiceService : IDisposable
     private bool _running, _listening, _wakeEnabled;
     private bool _onlineUnavailable;     // the modern recogniser failed once: use the old dictation instead
     private bool _noticeShown;
+    private volatile bool _finishRequested;
     private int _session;                // identifies the current dictation window, so a late result from an old one is ignored
 
     /// <summary>Set by the window: whether Gemini can transcribe right now, and how.</summary>
@@ -81,8 +82,10 @@ public sealed class VoiceService : IDisposable
     {
         lock (_gate)
         {
-            if (_listening) return;
+            // Pressing the talk key (or tapping the orb) again while she listens means "I'm done, send it".
+            if (_listening) { _finishRequested = true; return; }
             _listening = true;
+            _finishRequested = false;
             _session++;
             _timeout = new System.Threading.Timer(_ => EndListening(), null,
                 _onlineUnavailable ? DictationTimeout : TimeSpan.FromSeconds(45), Timeout.InfiniteTimeSpan);
@@ -99,7 +102,8 @@ public sealed class VoiceService : IDisposable
         try
         {
             recording = await MicRecorder.RecordUtteranceAsync(TimeSpan.FromSeconds(7), TimeSpan.FromSeconds(15),
-                () => { lock (_gate) return !_listening || _session != session; }, rms => Level?.Invoke(rms));
+                () => { lock (_gate) return !_listening || _session != session; }, rms => Level?.Invoke(rms),
+                () => _finishRequested);
         }
         catch (Exception ex) { LogProblem(ex); return false; }
 

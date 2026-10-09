@@ -12,7 +12,7 @@ internal static class MicRecorder
     public sealed record Recording(byte[]? Wav, double Peak, double Seconds, string Outcome, string Detail = "");
 
     public static async Task<Recording> RecordUtteranceAsync(TimeSpan firstWordTimeout, TimeSpan maxLength, Func<bool> cancelled,
-        Action<double>? onLevel = null)
+        Action<double>? onLevel = null, Func<bool>? stopNow = null)
     {
         var format = new WaveFormat(16000, 16, 1);
         var pcm = new MemoryStream();
@@ -56,7 +56,8 @@ internal static class MicRecorder
             var quiet = rms <= threshold || (speech && rms < speechLevel * 0.35);
             if (!quiet) lastVoice = now;
 
-            if (speech && now - lastVoice > TimeSpan.FromSeconds(1.1)) finished.TrySetResult("done");
+            if (stopNow?.Invoke() == true) finished.TrySetResult(speech ? "done" : "silence");
+            else if (speech && now - lastVoice > TimeSpan.FromSeconds(0.8)) finished.TrySetResult("done");
             else if (!speech && now - start > firstWordTimeout) finished.TrySetResult("silence");
             else if (now - start > maxLength) finished.TrySetResult("done");
             else if (cancelled()) finished.TrySetResult("cancelled");

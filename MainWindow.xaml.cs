@@ -526,8 +526,14 @@ public partial class MainWindow : Window
     private void SetListening(bool on)
     {
         _listeningActive = on;
-        if (ListeningHost.Child is null) ListeningHost.Child = _listeningOrb;
-        if (on) _listeningOrb.Label = "Listening…";
+        if (ListeningHost.Child is null)
+        {
+            ListeningHost.Child = _listeningOrb;
+            ListeningHost.Cursor = Cursors.Hand;
+            ListeningHost.Background = Brushes.Transparent;
+            ListeningHost.MouseLeftButtonUp += (_, _) => StartListening(); // a second request means "I'm done, send it"
+        }
+        if (on) _listeningOrb.Label = "Listening… tap to send";
         ListeningHost.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         if (on) ListeningHost.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)));
         RefreshLayout();
