@@ -48,6 +48,7 @@ public partial class MainWindow : Window
         UpdateMuteButton();
 
         foreach (var entry in _chat.Entries) Messages.Children.Add(ChatBubbles.Create(entry, animate: false));
+        UpdateOlderButton();
         RefreshLayout();
         RefreshChips();
         RefreshModelLabel();
@@ -67,7 +68,7 @@ public partial class MainWindow : Window
         });
         _voice.GeminiSpeechAvailable = () => _appSettings.SpeechViaGemini && !_appSettings.UseLocal
                                              && !string.IsNullOrWhiteSpace(_settings.LoadApiKey());
-        _voice.GeminiTranscribe = async wav => await GeminiSpeech.TranscribeAsync(_settings.LoadApiKey()!, wav);
+        _voice.GeminiTranscribe = async wav => await GeminiSpeech.TranscribeAsync(_settings.LoadApiKey()!, wav, _appSettings.SpeechLanguage);
         _voice.Notice += message => Dispatcher.Invoke(() =>
         {
             if (message.StartsWith("Understanding")) _listeningOrb.Label = message; else Status.Text = message;
@@ -161,6 +162,11 @@ public partial class MainWindow : Window
         TabAi.IsChecked = true;
         MuteSwitch.IsChecked = _appSettings.VoiceMuted;
         SpeechLangBox.Text = _appSettings.SpeechLanguage;
+        MicBox.Items.Clear();
+        MicBox.Items.Add("Windows default");
+        foreach (var name in MicRecorder.DeviceNames()) MicBox.Items.Add(name);
+        MicBox.SelectedIndex = _appSettings.MicrophoneDevice >= 0 && _appSettings.MicrophoneDevice + 1 < MicBox.Items.Count
+            ? _appSettings.MicrophoneDevice + 1 : 0;
         GeminiSpeechSwitch.IsChecked = _appSettings.SpeechViaGemini;
         AboutName.Text = _appSettings.AssistantName;
         AboutVersion.Text = "Version " + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0");
@@ -343,6 +349,7 @@ public partial class MainWindow : Window
         _appSettings.SetProfile(ProfileName.Text, ProfileNick.Text, AssistantNameBox.Text, VoiceMaleSeg.IsChecked == true);
         _appSettings.VoiceMuted = MuteSwitch.IsChecked == true;
         _appSettings.SpeechLanguage = SpeechLangBox.Text.Trim();
+        _appSettings.MicrophoneDevice = MicBox.SelectedIndex - 1; // item 0 is "Windows default"
         _appSettings.SpeechViaGemini = GeminiSpeechSwitch.IsChecked == true;
         if (_appSettings.VoiceMuted) _speaker.SpeakAsyncCancelAll();
         UpdateMuteButton();
@@ -391,6 +398,36 @@ public partial class MainWindow : Window
         RefreshLayout();
     }
 
+    private Button? _olderButton;
+
+    // A "Show older messages" button at the top of the chat while the database holds more than what is on screen.
+    private void UpdateOlderButton()
+    {
+        if (_olderButton is not null) Messages.Children.Remove(_olderButton);
+        if (!_chat.HasOlder) return;
+        _olderButton ??= CreateOlderButton();
+        Messages.Children.Insert(0, _olderButton);
+    }
+
+    private Button CreateOlderButton()
+    {
+        var button = new Button
+        {
+            Content = "Show older messages",
+            Style = (Style)FindResource("GhostButton"),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 4, 0, 8)
+        };
+        button.Click += (_, _) =>
+        {
+            var older = _chat.LoadOlder();
+            var index = _olderButton is not null && Messages.Children.Contains(_olderButton) ? 1 : 0;
+            foreach (var entry in older) Messages.Children.Insert(index++, ChatBubbles.Create(entry, animate: false));
+            UpdateOlderButton();
+        };
+        return button;
+    }
+
     private void NewChat_Click(object sender, RoutedEventArgs e)
     {
         _speaker.SpeakAsyncCancelAll();
@@ -398,6 +435,7 @@ public partial class MainWindow : Window
         LlmClientBase.DeleteSavedContexts();
         _chat.Clear();
         Messages.Children.Clear();
+        _olderButton = null;
         RefreshLayout();
         Input.Focus();
     }
@@ -626,6 +664,7 @@ public partial class MainWindow : Window
         HeaderText.Text = _appSettings.AssistantName;
         _voice.SetWakePhrase(_appSettings.WakePhrase);
         _voice.SpeechLanguage = _appSettings.SpeechLanguage;
+        _voice.MicrophoneDevice = _appSettings.MicrophoneDevice;
         try { _speaker.SelectVoiceByHints(_appSettings.VoiceGender == "male" ? System.Speech.Synthesis.VoiceGender.Male : System.Speech.Synthesis.VoiceGender.Female); }
         catch { /* keep the default voice */ }
         IdentityChanged?.Invoke();

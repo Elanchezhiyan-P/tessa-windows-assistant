@@ -26,7 +26,7 @@ if (-not (Test-Path "$data\apikey.bin")) { throw 'No Gemini key is saved in the 
 
 function By($scope, $property, [string]$value) { $scope.FindFirst('Descendants', (New-Object System.Windows.Automation.PropertyCondition($A::$property, $value))) }
 function Main { foreach ($w in ($root.FindAll('Children', (New-Object System.Windows.Automation.PropertyCondition($A::ProcessIdProperty, $script:app.Id))))) { if (By $w 'AutomationIdProperty' 'Input') { return $w } } }
-$read = { try { @(Get-Content "$data\transcript.json" -Raw | ConvertFrom-Json) } catch { @() } }
+$read = { try { @(python "$PSScriptRoot\read_transcript.py" | ConvertFrom-Json) } catch { @() } }
 
 function Ask([string]$text, [string]$cardAnswer = 'Deny', [int]$timeout = 90) {
     $before = (& $read).Count

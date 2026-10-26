@@ -40,6 +40,8 @@ internal static class ToolSelector
             ["web_lookup"]),
         (new(@"dark mode|light mode|theme|brightness|sleep|shut ?down|restart|reboot|sign out|log ?off|\block\b", Opts),
             ["set_theme", "set_brightness", "power_action", "lock_screen"]),
+        (new(@"earlier|before|last time|yesterday|last week|history|did i (ask|say|tell|mention)|we (talked|discussed)|you (said|told)|previous(ly)?", Opts),
+            ["search_history"]),
         (new(@"\bkill\b|force quit|end task|not responding|stop (the )?process", Opts),
             ["kill_process"]),
     ];

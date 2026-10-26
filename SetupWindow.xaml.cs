@@ -7,7 +7,7 @@ namespace WinCompanion;
 public partial class SetupWindow : Window
 {
     private readonly AppSettings _settings;
-    private bool _done, _nickEdited;
+    private bool _nickEdited;
 
     public SetupWindow(AppSettings settings)
     {
@@ -28,7 +28,7 @@ public partial class SetupWindow : Window
         };
         AssistantBox.TextChanged += (_, _) => UpdateHint();
         Loaded += (_, _) => UserNameBox.Focus();
-        Closed += (_, _) => { if (!_done) Finish(skip: true); };
+        // Closing the window with the X is not a decision: the welcome shows again next time. Only Start or Skip finish it.
     }
 
     private void UpdateHint()
@@ -39,7 +39,6 @@ public partial class SetupWindow : Window
 
     private void Finish(bool skip)
     {
-        _done = true;
         if (!skip)
             _settings.SetProfile(UserNameBox.Text, NickBox.Text, AssistantBox.Text, VoiceMale.IsChecked == true);
         _settings.SetupDone = true;

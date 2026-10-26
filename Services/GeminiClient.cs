@@ -9,7 +9,6 @@ namespace WinCompanion.Services;
 /// <summary>Gemini over REST: a function-calling chat loop plus one-shot generation.</summary>
 public sealed class GeminiClient : LlmClientBase
 {
-    private const string Model = "gemini-2.5-flash";
     private const int MaxRetries = 2;
     private static readonly TimeSpan MaxAutoWait = TimeSpan.FromSeconds(20);
 
@@ -115,7 +114,7 @@ public sealed class GeminiClient : LlmClientBase
 
     private async Task<JsonObject> PostAsync(JsonObject body)
     {
-        var url = $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:generateContent";
+        var url = GeminiApi.GenerateUrl;
 
         for (var attempt = 0; ; attempt++)
         {
@@ -144,7 +143,7 @@ public sealed class GeminiClient : LlmClientBase
                         ?? throw new LlmException("Gemini returned no answer (the request may have been blocked).");
                 }
 
-                var retryAfter = RetryDelay(text);
+                var retryAfter = GeminiApi.RetryDelay(text);
                 var transient = resp.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable;
                 var dailyQuota = text.Contains("PerDay", StringComparison.OrdinalIgnoreCase);
                 var wait = retryAfter ?? TimeSpan.FromSeconds(3);
@@ -154,51 +153,9 @@ public sealed class GeminiClient : LlmClientBase
                     await Task.Delay(wait + TimeSpan.FromMilliseconds(500));
                     continue;
                 }
-                throw new LlmException(Describe(resp.StatusCode, text, retryAfter));
+                throw new LlmException(GeminiApi.Describe(resp.StatusCode, text, retryAfter));
             }
         }
-    }
-
-    private static string Describe(HttpStatusCode status, string body, TimeSpan? retryAfter)
-    {
-        var message = ErrorMessage(body);
-        switch ((int)status)
-        {
-            case 429:
-                if (body.Contains("PerDay", StringComparison.OrdinalIgnoreCase))
-                    return "You've used today's free Gemini quota. It resets daily, so try again tomorrow, or switch to a local model in Settings.";
-                var wait = retryAfter is { } r ? $"about {Math.Ceiling(r.TotalSeconds)} seconds" : "a minute";
-                return $"Slow down: the free tier only allows a few requests per minute. Try again in {wait}.";
-            case 503:
-                return "Gemini is overloaded right now. Try again in a moment.";
-            case 400 when message.Contains("API key", StringComparison.OrdinalIgnoreCase):
-            case 401:
-            case 403:
-                return "Gemini rejected the API key. Open Settings to update it.";
-            default:
-                return $"Gemini error {(int)status}: {message}";
-        }
-    }
-
-    private static string ErrorMessage(string body)
-    {
-        try { return JsonNode.Parse(body)?["error"]?["message"]?.GetValue<string>() ?? body; }
-        catch (JsonException) { return body; }
-    }
-
-    // Gemini reports "retry in N seconds" as an error detail of type RetryInfo, e.g. "retryDelay": "12s".
-    private static TimeSpan? RetryDelay(string body)
-    {
-        try
-        {
-            var details = JsonNode.Parse(body)?["error"]?["details"]?.AsArray();
-            var raw = details?.FirstOrDefault(d => d?["retryDelay"] is not null)?["retryDelay"]?.GetValue<string>();
-            if (raw is not null && double.TryParse(raw.TrimEnd('s'), System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out var seconds))
-                return TimeSpan.FromSeconds(seconds);
-        }
-        catch (Exception ex) when (ex is JsonException or InvalidOperationException) { }
-        return null;
     }
 
     // ---- Persisted conversation context ---------------------------------------------------------
@@ -225,16 +182,16 @@ public sealed class GeminiClient : LlmClientBase
     {
         try
         {
-            if (File.Exists(ContextPath) && JsonNode.Parse(File.ReadAllText(ContextPath)) is JsonArray saved)
+            if (AtomicFile.ReadAllText(ContextPath, AtomicFile.IsJson) is { } json && JsonNode.Parse(json) is JsonArray saved)
                 foreach (var entry in saved) _history.Add(entry!.DeepClone());
             TrimHistory();
         }
-        catch (Exception ex) when (ex is IOException or JsonException) { _history.Clear(); }
+        catch (JsonException) { _history.Clear(); }
     }
 
     private void SaveHistory()
     {
-        try { File.WriteAllText(ContextPath, _history.ToJsonString()); }
+        try { AtomicFile.WriteAllText(ContextPath, _history.ToJsonString()); }
         catch (IOException) { }
     }
 }

@@ -152,6 +152,8 @@
                                               Content="Use Gemini to understand my voice (much more accurate; sends the recording to Google)" />
                                     <TextBlock Text="Language she listens in (for example en-IN or en-US; empty uses Windows' setting)" Style="{StaticResource FieldLabel}" />
                                     <TextBox x:Name="SpeechLangBox" Style="{StaticResource Field}" MaxLength="12" />
+                                    <TextBlock Text="Microphone" Style="{StaticResource FieldLabel}" />
+                                    <ComboBox x:Name="MicBox" Margin="0,4,0,0" AutomationProperties.Name="Microphone" />
                                     <CheckBox x:Name="MuteSwitch" Style="{StaticResource Switch}" Margin="2,14,0,0"
                                               Content="Mute her voice (text replies only)" />
                                 </StackPanel>

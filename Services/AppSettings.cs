@@ -42,6 +42,8 @@ public sealed class AppSettings
     public bool VoiceMuted { get; set; }
     /// <summary>Language she listens in (a tag such as "en-IN" or "en-US"). Empty: whatever Windows is set to.</summary>
     public string SpeechLanguage { get; set; } = "";
+    /// <summary>Which microphone to record from (its index in Windows' list). -1 is the Windows default.</summary>
+    public int MicrophoneDevice { get; set; } = -1;
     /// <summary>With Gemini selected, send each recorded phrase to Gemini to be turned into text (more accurate; the audio leaves the PC).</summary>
     public bool SpeechViaGemini { get; set; } = true;
     /// <summary>False until the first-run welcome has been completed or skipped.</summary>
@@ -81,10 +83,10 @@ public sealed class AppSettings
         var settings = new AppSettings();
         try
         {
-            if (File.Exists(FilePath))
-                settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath)) ?? new();
+            var text = AtomicFile.ReadAllText(FilePath, AtomicFile.IsJson);
+            if (text is not null) settings = JsonSerializer.Deserialize<AppSettings>(text) ?? new();
         }
-        catch (Exception ex) when (ex is IOException or JsonException) { }
+        catch (JsonException) { }
         if (string.IsNullOrWhiteSpace(settings.AssistantName)) settings.AssistantName = "Tessa";
         Current = settings;
         return settings;
@@ -92,7 +94,7 @@ public sealed class AppSettings
 
     public void Save()
     {
-        try { File.WriteAllText(FilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true })); }
+        try { AtomicFile.WriteAllText(FilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true })); }
         catch (IOException) { }
     }
 }

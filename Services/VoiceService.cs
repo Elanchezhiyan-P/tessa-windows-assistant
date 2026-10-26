@@ -33,6 +33,9 @@ public sealed class VoiceService : IDisposable
     /// <summary>The language to listen in ("en-IN"...), or empty for the Windows default.</summary>
     public string SpeechLanguage { get; set; } = "";
 
+    /// <summary>Which microphone to record from (its index in Windows' list), or -1 for the default one.</summary>
+    public int MicrophoneDevice { get; set; } = -1;
+
     /// <summary>How loud you are right now (0 to about 0.3), many times a second while she records. Drives the listening animation.</summary>
     public event Action<double>? Level;
 
@@ -103,7 +106,7 @@ public sealed class VoiceService : IDisposable
         {
             recording = await MicRecorder.RecordUtteranceAsync(TimeSpan.FromSeconds(7), TimeSpan.FromSeconds(15),
                 () => { lock (_gate) return !_listening || _session != session; }, rms => Level?.Invoke(rms),
-                () => _finishRequested);
+                () => _finishRequested, MicrophoneDevice);
         }
         catch (Exception ex) { LogProblem(ex); return false; }
 
@@ -176,8 +179,7 @@ public sealed class VoiceService : IDisposable
 
     private static void LogProblem(Exception ex)
     {
-        try { File.AppendAllText(AppPaths.FileIn("speech.log"), $"{DateTime.Now:s}  0x{ex.HResult:X8}  {ex.GetType().Name}: {ex.Message}{Environment.NewLine}"); }
-        catch (IOException) { }
+        SpeechLog.Write($"0x{ex.HResult:X8}  {ex.GetType().Name}: {ex.Message}");
     }
 
     /// <summary>One dictation with Windows' online recogniser. On any problem, falls back to the built-in dictation.</summary>
@@ -250,8 +252,7 @@ public sealed class VoiceService : IDisposable
 
     private static void Log(string line)
     {
-        try { File.AppendAllText(AppPaths.FileIn("speech.log"), $"{DateTime.Now:s}  {line}{Environment.NewLine}"); }
-        catch (IOException) { }
+        SpeechLog.Write(line);
     }
 
     private void EndListening()

@@ -107,11 +107,13 @@ internal static class PowerShellTool
         try { await process.WaitForExitAsync(cts.Token); }
         catch (OperationCanceledException)
         {
-            process.Kill(true);
+            try { process.Kill(true); } catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception) { /* already exited */ }
             return $"Timed out after {(int)timeout.TotalSeconds}s and was stopped. Retry with a larger timeout_seconds if it needs longer.";
         }
 
-        var output = (await stdout + await stderr).Trim();
+        var errors = (await stderr).Trim();
+        var output = (await stdout).Trim();
+        if (errors.Length > 0) output = output.Length > 0 ? $"{output}\n[errors]\n{errors}" : errors;
         if (output.Length > MaxOutputChars) output = output[..MaxOutputChars] + "\n...(truncated)";
         if (output.Length == 0) output = "(no output)";
         return process.ExitCode == 0 ? output : $"{output}\n[exit code {process.ExitCode}]";

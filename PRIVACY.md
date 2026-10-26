@@ -11,9 +11,8 @@ Everything is in `%AppData%\WinCompanion` (tray menu, *Data folder*):
 |---|---|
 | `apikey.bin` | Your Gemini key, encrypted with Windows DPAPI (readable only by your Windows account on this PC) |
 | `settings.json` | Preferences: model choice, local server address, privacy switches, character |
-| `transcript.json`, `context.*.json` | Your chat history and the model's conversation context |
-| `memory.json` | Facts you asked it to remember |
-| `reminders.json` | Pending reminders |
+| `wincompanion.db` | A local SQLite database with your chat history, the facts you asked it to remember, and pending reminders |
+| `context.*.json` | The model's recent conversation context |
 | `actions.log` | Each action it ran, when, whether you approved it, and a short result |
 | `crash.log` | Error details if something failed (no chat content) |
 | `pets\` | Characters you added yourself |
@@ -40,8 +39,8 @@ With **Local**, requests go only to the server address you set (normally `localh
 - **Web lookup** (when the AI needs current facts) sends only the search words to <https://duckduckgo.com> and reads back the top results.
 - **Weather** asks <https://wttr.in> for the city you name (or, with no city, your approximate location by IP address).
 - **Web search** opens your browser at a search page; the app itself sends nothing.
-- **Reminders, characters, voice and the local parser** work without internet.
-- **Voice** uses Windows speech recognition. The microphone is used only while the wake word is on or while you are talking.
+- **Reminders, characters and the local parser** work without internet.
+- **Voice** is understood by Gemini when that option is on with Gemini selected (see above), otherwise by Windows speech recognition. The microphone is used only while the wake word is on or while you are talking. Speech diagnostics (levels and outcomes, never the words or audio) go to `speech.log` in the data folder, which is capped at 1 MB.
 
 ## Control
 

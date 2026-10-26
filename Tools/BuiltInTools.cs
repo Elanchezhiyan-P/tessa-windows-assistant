@@ -46,7 +46,8 @@ internal static class BuiltInTools
         .Concat(MemoryTools.All(memory))
         .Concat(EverydayTools.All(ctx))
         .Concat(PowerShellTool.All(settings))
-        .Concat(ReminderTools.All(reminders));
+        .Concat(ReminderTools.All(reminders))
+        .Concat(HistoryTools.All());
 
     /// <summary>Finds an installed app by (part of) its name in the Start menu list. Null when nothing matches.</summary>
     private static (string Name, string Id)? FindStartApp(string name)
