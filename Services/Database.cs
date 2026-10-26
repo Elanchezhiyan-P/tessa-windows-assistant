@@ -62,6 +62,26 @@ internal static class Database
                 added TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS clipboard_history (
+                id   INTEGER PRIMARY KEY AUTOINCREMENT,
+                text TEXT NOT NULL,
+                time TEXT NOT NULL
+            );
+            CREATE VIRTUAL TABLE IF NOT EXISTS clipboard_fts USING fts5(text, content='clipboard_history', content_rowid='id');
+            CREATE TRIGGER IF NOT EXISTS clipboard_ai AFTER INSERT ON clipboard_history BEGIN
+                INSERT INTO clipboard_fts(rowid, text) VALUES (new.id, new.text);
+            END;
+            CREATE TRIGGER IF NOT EXISTS clipboard_ad AFTER DELETE ON clipboard_history BEGIN
+                INSERT INTO clipboard_fts(clipboard_fts, rowid, text) VALUES ('delete', old.id, old.text);
+            END;
+
+            CREATE TABLE IF NOT EXISTS routines (
+                name    TEXT PRIMARY KEY COLLATE NOCASE,
+                phrase  TEXT,
+                steps   TEXT NOT NULL,
+                created TEXT NOT NULL
+            );
+
             CREATE TABLE IF NOT EXISTS reminders (
                 id      TEXT PRIMARY KEY,
                 message TEXT NOT NULL,

@@ -28,6 +28,20 @@ internal static class WebResults
         return string.Join('\n', lines);
     }
 
+    /// <summary>Just the titles and addresses of the top results (for headline lists).</summary>
+    public static List<(string Title, string Url)> Headlines(string html, int max = 3)
+    {
+        var list = new List<(string, string)>();
+        foreach (Match m in Link.Matches(html))
+        {
+            var title = Clean(m.Groups["title"].Value);
+            if (title.Length == 0) continue;
+            list.Add((title, Target(m.Groups["href"].Value)));
+            if (list.Count >= max) break;
+        }
+        return list;
+    }
+
     private static string Clean(string html) => Regex.Replace(WebUtility.HtmlDecode(Tags.Replace(html, "")), @"\s+", " ").Trim();
 
     /// <summary>DuckDuckGo wraps links as //duckduckgo.com/l/?uddg=ENCODED; unwrap to the real address.</summary>

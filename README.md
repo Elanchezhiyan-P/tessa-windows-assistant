@@ -44,13 +44,34 @@ brightness, put the PC to sleep or restart it (power actions always ask first).
 
 ### Screenshots
 *"Take a screenshot and save it to my Desktop"* saves an image to a folder you choose. *"What's on my screen?"* lets the AI look at it,
-but only after you approve sending it.
+but only after you approve sending it. After a screen question she offers one-click follow-ups: **Copy the text on screen** (read
+with Windows' own text recognition, so it never leaves your PC), **Explain this error** and **Summarize this**.
 
 ### Clipboard helpers
 Summarise, translate, fix the grammar of, shorten, or make more polite whatever you just copied.
 
 ### Files and folders
 Find, read, move and rename files, create folders, tidy up Downloads, and send things to the Recycle Bin. Nothing is ever deleted permanently.
+
+### Quick capture, notes and to-dos
+Press **Ctrl+Alt+N**, type, and press Enter: the note is saved to a Markdown file without opening the chat. Start with `todo:` to save it as a task.
+You can also say *"note: buy milk"* or *"add a to-do: call the bank"*.
+
+### Daily briefing
+Say *"briefing"* for today's reminders, the weather and headlines for the topics you choose (Settings, You and her). Turn on *Show my briefing when I start my day* to get it automatically the first time she starts each day. It needs no AI model.
+
+### Routines
+Teach her a sequence once, for example *"make a routine called morning: open Outlook, snap Teams to the left, set the volume to 30%, and run it when I say good morning"*.
+Then just say *"good morning"*. Every step still asks for approval exactly as it would if you had typed it. *"List my routines"* and *"delete the morning routine"* work too.
+
+### Focus mode and pomodoro
+*"Pomodoro"* (4 rounds of 25 minutes with 5-minute breaks) or *"focus for 45 minutes"*. While you work, other reminders are held back and she stays quiet; the reminder character announces each break. *"Stop focus"* ends it.
+
+### Clipboard history (optional)
+Turn on *Remember the last 100 things I copy* in Settings, Safety, then ask *"what was that link I copied this morning?"*. It is off by default, stays on your PC, and skips copies from password managers.
+
+### Chat history and export
+Your whole chat history is kept in a local database (older messages load on request), and she can search it (*"what did I ask about the invoice last week?"*). Say *"export this chat"* to save it as a Markdown file in Documents\WinCompanion\exports.
 
 ### Notes and memory
 Say *"note: buy milk"* to add to a Markdown notes file. Tell her a lasting fact (*"my project folder is D:\Work"*) and she remembers it for
@@ -103,6 +124,7 @@ the default is "Hey Tessa" but you can rename her to anything), and whether you 
 |---|---|
 | Ctrl+Alt+Space | Show or hide the window |
 | Ctrl+Alt+V | Talk (push-to-talk) |
+| Ctrl+Alt+N | Quick capture of a note or to-do |
 | "Hey Tessa" | Talk, hands-free |
 
 ### Administrator commands (optional)

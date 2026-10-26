@@ -120,6 +120,24 @@ public sealed class ReminderStore
         }
     }
 
+    /// <summary>Removes every reminder the predicate matches and returns how many were removed.</summary>
+    public int RemoveWhere(Func<Reminder, bool> predicate)
+    {
+        lock (_gate)
+        {
+            using var db = Database.Open();
+            var removed = 0;
+            foreach (var reminder in ReadAll(db).Where(predicate))
+            {
+                using var command = db.CreateCommand();
+                command.CommandText = "DELETE FROM reminders WHERE id = $id";
+                command.Parameters.AddWithValue("$id", reminder.Id.ToString());
+                removed += command.ExecuteNonQuery();
+            }
+            return removed;
+        }
+    }
+
     public int Clear()
     {
         lock (_gate)

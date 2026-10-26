@@ -115,6 +115,19 @@ public sealed class ChatStore
         catch (SqliteException) { return []; }
     }
 
+    /// <summary>Every saved question and answer, oldest first (tool lines are left out).</summary>
+    public static IReadOnlyList<ChatEntry> ReadAll()
+    {
+        try
+        {
+            using var db = Database.Open();
+            using var command = db.CreateCommand();
+            command.CommandText = "SELECT role, text, time FROM messages WHERE role IN ('user', 'assistant') ORDER BY id";
+            return ReadEntries(command, out _);
+        }
+        catch (SqliteException) { return []; }
+    }
+
     /// <summary>Turns free text into a safe FTS5 query: every word quoted, all of them required.</summary>
     internal static string ToMatchQuery(string text)
     {

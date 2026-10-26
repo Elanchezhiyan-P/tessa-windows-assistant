@@ -15,14 +15,17 @@ public interface ITool
     Task<string> ExecuteAsync(JsonObject args);
 }
 
+/// <summary>The stores and services some tools need beyond the basics.</summary>
+public sealed record AppFeatures(RoutineStore Routines, FocusService Focus);
+
 public sealed class ToolRegistry
 {
     private readonly Dictionary<string, ITool> _tools = new();
 
-    public static ToolRegistry CreateDefault(ToolContext ctx, MemoryStore memory, AppSettings settings, ReminderStore reminders)
+    public static ToolRegistry CreateDefault(ToolContext ctx, MemoryStore memory, AppSettings settings, ReminderStore reminders, AppFeatures features)
     {
         var registry = new ToolRegistry();
-        foreach (var tool in BuiltInTools.All(ctx, memory, settings, reminders)) registry._tools[tool.Name] = tool;
+        foreach (var tool in BuiltInTools.All(ctx, memory, settings, reminders, features)) registry._tools[tool.Name] = tool;
         return registry;
     }
 

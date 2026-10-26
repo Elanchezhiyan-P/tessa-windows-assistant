@@ -5,10 +5,10 @@ using static WinCompanion.Tools.ToolSchema;
 
 namespace WinCompanion.Tools;
 
-/// <summary>Lets the assistant look back through the saved conversation ("what did I ask about the invoice?").</summary>
+/// <summary>Lets the assistant look back through the saved conversation, and save it as a Markdown file.</summary>
 internal static class HistoryTools
 {
-    public static IEnumerable<ITool> All()
+    public static IEnumerable<ITool> All(AppSettings settings)
     {
         yield return new DelegateTool("search_history",
             "Search the user's saved past conversations with you for words they used or you said earlier (it covers older chats too, " +
@@ -28,5 +28,10 @@ internal static class HistoryTools
                 }
                 return Task.FromResult(sb.ToString());
             });
+
+        yield return new DelegateTool("export_chat",
+            "Save the conversation history as a Markdown file in Documents\\WinCompanion\\exports. Give a query to export only the messages that match it. Does not send anything anywhere.",
+            new JsonObject { ["query"] = Str("Optional words: export only messages containing them.") }, [], false,
+            args => Task.FromResult(ChatExport.Export(args["query"]?.GetValue<string>(), settings.AssistantName)));
     }
 }

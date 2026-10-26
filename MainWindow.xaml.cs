@@ -40,7 +40,8 @@ public partial class MainWindow : Window
         _ctx.Window = this;
         _ctx.Settings = _appSettings;
         _ctx.Confirm = ConfirmAsync;
-        _tools = ToolRegistry.CreateDefault(_ctx, _memory, _appSettings, _reminders);
+        _tools = ToolRegistry.CreateDefault(_ctx, _memory, _appSettings, _reminders, CreateFeatures());
+        StartFeatures();
         _pets = new PetController(_appSettings);
         Closing += OnClosing;
 
@@ -168,6 +169,10 @@ public partial class MainWindow : Window
         MicBox.SelectedIndex = _appSettings.MicrophoneDevice >= 0 && _appSettings.MicrophoneDevice + 1 < MicBox.Items.Count
             ? _appSettings.MicrophoneDevice + 1 : 0;
         GeminiSpeechSwitch.IsChecked = _appSettings.SpeechViaGemini;
+        ClipboardHistorySwitch.IsChecked = _appSettings.ClipboardHistory;
+        BriefingSwitch.IsChecked = _appSettings.BriefingAtStart;
+        BriefingCityBox.Text = _appSettings.BriefingCity;
+        BriefingTopicsBox.Text = _appSettings.BriefingTopics;
         AboutName.Text = _appSettings.AssistantName;
         AboutVersion.Text = "Version " + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0");
         ProfileName.Text = _appSettings.UserName;
@@ -351,6 +356,10 @@ public partial class MainWindow : Window
         _appSettings.SpeechLanguage = SpeechLangBox.Text.Trim();
         _appSettings.MicrophoneDevice = MicBox.SelectedIndex - 1; // item 0 is "Windows default"
         _appSettings.SpeechViaGemini = GeminiSpeechSwitch.IsChecked == true;
+        _appSettings.ClipboardHistory = ClipboardHistorySwitch.IsChecked == true;
+        _appSettings.BriefingAtStart = BriefingSwitch.IsChecked == true;
+        _appSettings.BriefingCity = BriefingCityBox.Text.Trim();
+        _appSettings.BriefingTopics = BriefingTopicsBox.Text.Trim();
         if (_appSettings.VoiceMuted) _speaker.SpeakAsyncCancelAll();
         UpdateMuteButton();
         _appSettings.Save();
@@ -461,7 +470,7 @@ public partial class MainWindow : Window
             client = new GeminiClient(key, _tools, ConfirmAsync, _log, _memory, SharedActiveApp);
         }
 
-        client.ToolCalled += call => Dispatcher.Invoke(() => AddMessage("tool", call));
+        client.ToolCalled += call => Dispatcher.Invoke(() => { NoteToolCall(call); AddMessage("tool", call); });
         client.ToolFinished += result => Dispatcher.Invoke(() => AddMessage("tool", result));
         _ctx.Llm = client;
         _llm = client;
@@ -523,6 +532,15 @@ public partial class MainWindow : Window
     /// <param name="sendText">What is sent to the model, when it differs from what is displayed.</param>
     private async Task SubmitAsync(string display, bool spoken, string? sendText = null)
     {
+        // Routines, focus mode, the briefing and chat export are handled right here too.
+        if (await TryHandleFeatureAsync(sendText ?? display) is { } featureReply)
+        {
+            AddMessage("user", display);
+            AddMessage("assistant", featureReply);
+            if (spoken) Speak(featureReply);
+            return;
+        }
+
         // Reminders are handled right here: no model, no internet, no quota.
         if (LocalCommands.TryHandle(sendText ?? display, _reminders) is { } localReply)
         {
@@ -542,6 +560,7 @@ public partial class MainWindow : Window
             var reply = await client.SendAsync(sendText ?? display);
             AddMessage("assistant", reply.Length > 0 ? reply : "(no reply)");
             if (spoken) Speak(reply);
+            ShowScreenFollowUps();
         }
         catch (LlmException ex)
         {
@@ -600,6 +619,8 @@ public partial class MainWindow : Window
 
     private void OnReminderDue(Reminder reminder, bool missed)
     {
+        if (HoldForFocus(reminder)) return;
+
         var text = $"⏰ **Reminder:** {reminder.Message}";
         if (missed) text += $"\n\n(missed: it was due {reminder.Due:ddd d MMM, h:mm tt})";
 
@@ -717,7 +738,7 @@ public partial class MainWindow : Window
 
     private void Speak(string text)
     {
-        if (_appSettings.VoiceMuted) return;
+        if (_appSettings.VoiceMuted || FocusIsQuiet) return;
         // Strip markdown marks so the voice doesn't read out asterisks.
         var clean = text.Replace("*", "").Replace("`", "").Replace("#", "");
         _speaker.SpeakAsyncCancelAll();
