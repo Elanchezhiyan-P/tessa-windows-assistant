@@ -174,7 +174,7 @@ public partial class MainWindow : Window
         BriefingCityBox.Text = _appSettings.BriefingCity;
         BriefingTopicsBox.Text = _appSettings.BriefingTopics;
         AboutName.Text = _appSettings.AssistantName;
-        AboutVersion.Text = "Version " + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0");
+        AboutVersion.Text = "Version " + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "2.0.0");
         ProfileName.Text = _appSettings.UserName;
         ProfileNick.Text = _appSettings.UserNickname;
         AssistantNameBox.Text = _appSettings.AssistantName;

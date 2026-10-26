@@ -10,7 +10,7 @@
 
 .EXAMPLE
   $env:WINCOMPANION_PFX = 'C:\keys\mycert.pfx'; $env:WINCOMPANION_PFX_PASSWORD = '...'
-  .\build\sign.ps1 -Files publish\WinCompanion.exe, installer\Output\WinCompanion-Setup-1.0.0.exe
+  .\build\sign.ps1 -Files publish\WinCompanion.exe, installer\Output\WinCompanion-Setup-2.0.0.exe
 
 .EXAMPLE
   .\build\sign.ps1 -Files x.exe -SelfSignedForTesting     # proves the mechanism only; Windows will not trust it

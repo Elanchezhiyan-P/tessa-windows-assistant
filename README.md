@@ -5,7 +5,7 @@ about your PC, set reminders, open and arrange windows, take screenshots, rewrit
 you. She works with **Google Gemini** (free API key) or a **local model** such as Qwen running in Ollama or LM Studio, so
 you can keep everything on your own machine.
 
-> **Version 1.0.0, the first release.** Windows 10 and 11, 64-bit. It has been tested thoroughly on the author's PC (Windows 11) and
+> **Version 2.0.0.** Windows 10 and 11, 64-bit. New in 2.0: Gemini voice, a local database for chat history, memory and reminders (data from 1.x is not imported), quick capture, clipboard history, routines, focus mode, a daily briefing and screen text. It has been tested thoroughly on the author's PC (Windows 11) and
 > has had little testing on other setups, so please report problems: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Features
@@ -86,7 +86,7 @@ and an **Action log** of everything she ran and when.
 
 ## Install
 
-Run `WinCompanion-Setup-1.0.0.exe`. It installs for your user only (no admin rights needed) and includes everything it
+Run `WinCompanion-Setup-2.0.0.exe`. It installs for your user only (no admin rights needed) and includes everything it
 needs, so you don't have to install .NET. Windows SmartScreen may warn that the publisher is unknown, because the installer
 isn't signed with a paid certificate yet; choose **More info, Run anyway** if you trust the source.
 

@@ -2,7 +2,7 @@
 ; Installs for the current user only, so no administrator rights or UAC prompt are needed.
 
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "2.0.0"
 #endif
 #ifndef SourceDir
   #define SourceDir "..\publish"
