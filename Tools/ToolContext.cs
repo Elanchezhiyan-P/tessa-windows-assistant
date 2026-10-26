@@ -10,6 +10,10 @@ public sealed class ToolContext
     public System.Windows.Window? Window { get; set; }
     public AppSettings Settings { get; set; } = new();
 
+    /// <summary>All tools, and the guarded way to run one (used by routines). Set once the registry exists.</summary>
+    public ToolRegistry? Tools { get; set; }
+    public ToolExecutor? Executor { get; set; }
+
     /// <summary>Shows the approval card and returns the user's answer.</summary>
     public Func<string, Task<bool>> Confirm { get; set; } = _ => Task.FromResult(false);
 

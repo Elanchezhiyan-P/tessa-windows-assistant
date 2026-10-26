@@ -36,6 +36,7 @@ public abstract class LlmClientBase : ILlm
     private static readonly string[] ContextFiles = ["context.json", "context.gemini.json", "context.local.json"];
 
     private readonly ToolRegistry _tools;
+    private readonly ToolExecutor _executor;
     private readonly Func<string, Task<bool>> _confirm;
     private readonly ActionLog _log;
     private readonly MemoryStore _memory;
@@ -48,6 +49,7 @@ public abstract class LlmClientBase : ILlm
         MemoryStore memory, Func<ActiveAppInfo?> activeApp)
     {
         _tools = tools;
+        _executor = new ToolExecutor(tools, confirm, log);
         _confirm = confirm;
         _log = log;
         _memory = memory;
@@ -95,32 +97,7 @@ public abstract class LlmClientBase : ILlm
 
     protected async Task<string> RunToolAsync(string name, JsonObject args)
     {
-        var tool = _tools.Find(name);
-        if (tool is null)
-        {
-            var unknown = $"Unknown tool '{name}'.";
-            _log.Write(name, args, "unknown", unknown);
-            return unknown;
-        }
-
-        var needsConfirmation = tool.NeedsConfirmation(args);
-        // Show a PowerShell command as plain text rather than escaped JSON.
-        var detail = args["command"] is JsonValue v && v.TryGetValue<string>(out var command) ? command : args.ToJsonString();
-        var approved = !needsConfirmation || await _confirm($"{name}\n{detail}");
-
-        string result;
-        if (!approved)
-        {
-            result = "The user declined this action.";
-        }
-        else
-        {
-            try { result = await tool.ExecuteAsync(args); }
-            catch (Exception ex) { result = $"Error: {ex.Message}"; }
-        }
-
-        _log.Write(name, args, !needsConfirmation ? "auto" : approved ? "approved" : "declined", result);
-
+        var result = await _executor.RunAsync(name, args);
         var firstLine = result.ReplaceLineEndings("\n").Split('\n')[0];
         ToolFinished?.Invoke("→ " + (firstLine.Length > 200 ? firstLine[..200] + "…" : firstLine));
         return result;

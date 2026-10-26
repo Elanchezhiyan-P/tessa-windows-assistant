@@ -27,6 +27,26 @@ internal static class ScreenTools
                 return await llm.GenerateAsync(args["question"]!.GetValue<string>() + " Answer concisely.", png: png);
             });
 
+        yield return new DelegateTool("read_screen_text",
+            "Read the text visible on the screen with Windows' built-in text recognition (OCR) and optionally copy it to the clipboard. " +
+            "Everything stays on this PC. Use for 'copy the text on my screen'. For explaining or understanding the screen, use look_at_screen instead.",
+            new JsonObject
+            {
+                ["scope"] = Choice("'screen' for all monitors or 'active_window' for just the focused window. Default active_window.", "screen", "active_window"),
+                ["copy_to_clipboard"] = Bool("Put the text on the clipboard. Default true.")
+            }, [], false,
+            async args =>
+            {
+                var png = await CaptureAsync(ctx, args["scope"]?.GetValue<string>() ?? "active_window", maxWidth: null);
+                var text = await ScreenText.ReadAsync(png);
+                if (text.Length == 0) return "I couldn't find any text on the screen (or no text recognition language is installed in Windows).";
+
+                var copy = args["copy_to_clipboard"]?.GetValue<bool>() ?? true;
+                if (copy) ctx.Window?.Dispatcher.Invoke(() => System.Windows.Clipboard.SetText(text));
+                var preview = text.Length > 1500 ? text[..1500] + "..." : text;
+                return $"{(copy ? "Copied to the clipboard" : "Found")}:\n{preview}";
+            });
+
         yield return new DelegateTool("save_screenshot",
             "Take a screenshot and save it as a PNG file (default: the Desktop). Does not send the image anywhere. Returns the saved path.",
             new JsonObject
@@ -66,7 +86,7 @@ internal static class ScreenTools
     }
 
     // Hides our own overlay so it isn't in the picture, captures, then brings it back without stealing focus.
-    private static async Task<byte[]> CaptureAsync(ToolContext ctx, string scope, int? maxWidth)
+    internal static async Task<byte[]> CaptureAsync(ToolContext ctx, string scope, int? maxWidth)
     {
         var window = ctx.Window;
         var wasVisible = window?.IsVisible == true;

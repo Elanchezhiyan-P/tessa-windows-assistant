@@ -10,7 +10,7 @@ Output: publish\ (the app) and installer\Output\WinCompanion-Setup-<version>.exe
 Needs: the .NET 8 SDK and Inno Setup 6 (winget install JRSoftware.InnoSetup).
 #>
 param(
-    [string]$Version = '1.0.0',
+    [string]$Version = '2.0.0',
     [switch]$Sign
 )
 

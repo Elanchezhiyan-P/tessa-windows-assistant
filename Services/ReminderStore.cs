@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text.Json;
 
 namespace WinCompanion.Services;
 
@@ -42,30 +41,36 @@ public sealed record Reminder(Guid Id, string Message, DateTime Due, DateTime Cr
     };
 }
 
-/// <summary>Pending reminders, saved to disk so they survive restarts and reboots.</summary>
+/// <summary>Pending reminders, saved in the local database so they survive restarts and reboots.</summary>
 public sealed class ReminderStore
 {
     private readonly object _gate = new();
-    private readonly List<Reminder> _items;
-
-    private static string FilePath => AppPaths.FileIn("reminders.json");
-
-    public ReminderStore() => _items = Load();
 
     public Reminder Add(string message, DateTime due, string? repeat = null)
     {
         var reminder = new Reminder(Guid.NewGuid(), message, due, DateTime.Now, repeat);
         lock (_gate)
         {
-            _items.Add(reminder);
-            Save();
+            using var db = Database.Open();
+            using var command = db.CreateCommand();
+            command.CommandText = "INSERT INTO reminders(id, message, due, created, repeat) VALUES ($id, $message, $due, $created, $repeat)";
+            command.Parameters.AddWithValue("$id", reminder.Id.ToString());
+            command.Parameters.AddWithValue("$message", reminder.Message);
+            command.Parameters.AddWithValue("$due", Database.ToText(reminder.Due));
+            command.Parameters.AddWithValue("$created", Database.ToText(reminder.Created));
+            command.Parameters.AddWithValue("$repeat", (object?)reminder.Repeat ?? DBNull.Value);
+            command.ExecuteNonQuery();
         }
         return reminder;
     }
 
     public IReadOnlyList<Reminder> Pending()
     {
-        lock (_gate) return _items.OrderBy(r => r.Due).ToList();
+        lock (_gate)
+        {
+            using var db = Database.Open();
+            return ReadAll(db);
+        }
     }
 
     /// <summary>Removes and returns every reminder that is due at or before <paramref name="now"/>.</summary>
@@ -73,14 +78,27 @@ public sealed class ReminderStore
     {
         lock (_gate)
         {
-            var due = _items.Where(r => r.Due <= now).OrderBy(r => r.Due).ToList();
-            if (due.Count == 0) return due;
-            // A repeating reminder isn't consumed: it moves on to its next occurrence.
-            for (var i = 0; i < _items.Count; i++)
-                if (_items[i].Due <= now && _items[i].Repeat is not null)
-                    _items[i] = _items[i] with { Due = _items[i].NextAfter(now) };
-            _items.RemoveAll(r => r.Due <= now);
-            Save();
+            using var db = Database.Open();
+            using var transaction = db.BeginTransaction();
+            var due = ReadAll(db).Where(r => r.Due <= now).ToList();
+            foreach (var reminder in due)
+            {
+                using var command = db.CreateCommand();
+                command.Transaction = transaction;
+                // A repeating reminder isn't consumed: it moves on to its next occurrence.
+                if (reminder.Repeat is not null)
+                {
+                    command.CommandText = "UPDATE reminders SET due = $due WHERE id = $id";
+                    command.Parameters.AddWithValue("$due", Database.ToText(reminder.NextAfter(now)));
+                }
+                else
+                {
+                    command.CommandText = "DELETE FROM reminders WHERE id = $id";
+                }
+                command.Parameters.AddWithValue("$id", reminder.Id.ToString());
+                command.ExecuteNonQuery();
+            }
+            transaction.Commit();
             return due;
         }
     }
@@ -90,12 +108,33 @@ public sealed class ReminderStore
     {
         lock (_gate)
         {
-            var ordered = _items.OrderBy(r => r.Due).ToList();
+            using var db = Database.Open();
+            var ordered = ReadAll(db);
             if (number < 1 || number > ordered.Count) return null;
             var target = ordered[number - 1];
-            _items.Remove(target);
-            Save();
+            using var command = db.CreateCommand();
+            command.CommandText = "DELETE FROM reminders WHERE id = $id";
+            command.Parameters.AddWithValue("$id", target.Id.ToString());
+            command.ExecuteNonQuery();
             return target;
+        }
+    }
+
+    /// <summary>Removes every reminder the predicate matches and returns how many were removed.</summary>
+    public int RemoveWhere(Func<Reminder, bool> predicate)
+    {
+        lock (_gate)
+        {
+            using var db = Database.Open();
+            var removed = 0;
+            foreach (var reminder in ReadAll(db).Where(predicate))
+            {
+                using var command = db.CreateCommand();
+                command.CommandText = "DELETE FROM reminders WHERE id = $id";
+                command.Parameters.AddWithValue("$id", reminder.Id.ToString());
+                removed += command.ExecuteNonQuery();
+            }
+            return removed;
         }
     }
 
@@ -103,11 +142,23 @@ public sealed class ReminderStore
     {
         lock (_gate)
         {
-            var count = _items.Count;
-            _items.Clear();
-            Save();
-            return count;
+            using var db = Database.Open();
+            using var command = db.CreateCommand();
+            command.CommandText = "DELETE FROM reminders";
+            return command.ExecuteNonQuery();
         }
+    }
+
+    private static List<Reminder> ReadAll(Microsoft.Data.Sqlite.SqliteConnection db)
+    {
+        using var command = db.CreateCommand();
+        command.CommandText = "SELECT id, message, due, created, repeat FROM reminders ORDER BY due, created";
+        var list = new List<Reminder>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+            list.Add(new Reminder(Guid.Parse(reader.GetString(0)), reader.GetString(1), Database.FromText(reader.GetString(2)),
+                Database.FromText(reader.GetString(3)), reader.IsDBNull(4) ? null : reader.GetString(4)));
+        return list;
     }
 
     public string Describe()
@@ -137,22 +188,5 @@ public sealed class ReminderStore
             > 1 and < 7 => $"{due.ToString("dddd", CultureInfo.InvariantCulture)} at {clock}",
             _ => $"{due.ToString("d MMM", CultureInfo.InvariantCulture)} at {clock}"
         };
-    }
-
-    private static List<Reminder> Load()
-    {
-        try
-        {
-            if (File.Exists(FilePath))
-                return JsonSerializer.Deserialize<List<Reminder>>(File.ReadAllText(FilePath)) ?? new();
-        }
-        catch (Exception ex) when (ex is IOException or JsonException) { }
-        return new();
-    }
-
-    private void Save()
-    {
-        try { File.WriteAllText(FilePath, JsonSerializer.Serialize(_items)); }
-        catch (IOException) { }
     }
 }

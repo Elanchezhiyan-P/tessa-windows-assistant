@@ -152,8 +152,23 @@
                                               Content="Use Gemini to understand my voice (much more accurate; sends the recording to Google)" />
                                     <TextBlock Text="Language she listens in (for example en-IN or en-US; empty uses Windows' setting)" Style="{StaticResource FieldLabel}" />
                                     <TextBox x:Name="SpeechLangBox" Style="{StaticResource Field}" MaxLength="12" />
+                                    <TextBlock Text="Microphone" Style="{StaticResource FieldLabel}" />
+                                    <ComboBox x:Name="MicBox" Margin="0,4,0,0" AutomationProperties.Name="Microphone" />
                                     <CheckBox x:Name="MuteSwitch" Style="{StaticResource Switch}" Margin="2,14,0,0"
                                               Content="Mute her voice (text replies only)" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Daily briefing" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Text="Say “briefing” any time, or show it automatically the first time she starts each day." Style="{StaticResource FieldLabel}" />
+                                    <CheckBox x:Name="BriefingSwitch" Style="{StaticResource Switch}" Margin="2,10,0,0"
+                                              Content="Show my briefing when I start my day" />
+                                    <TextBlock Text="City for the weather (empty uses your approximate location)" Style="{StaticResource FieldLabel}" />
+                                    <TextBox x:Name="BriefingCityBox" Style="{StaticResource Field}" MaxLength="40" />
+                                    <TextBlock Text="News topics, separated by commas (for example technology, cricket)" Style="{StaticResource FieldLabel}" />
+                                    <TextBox x:Name="BriefingTopicsBox" Style="{StaticResource Field}" MaxLength="120" />
                                 </StackPanel>
                             </Border>
 
@@ -180,6 +195,12 @@
                                               Content="Ask before sending a screenshot, clipboard text or file to Gemini" />
                                     <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,10,0,0"
                                                Text="Gemini is a Google service, so what you send leaves this PC. A local model keeps everything here." />
+                                    <CheckBox x:Name="ClipboardHistorySwitch" Style="{StaticResource Switch}" Margin="2,14,0,0"
+                                              Content="Remember the last 100 things I copy, so I can ask “what was that link I copied?”" />
+                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,6,0,0"
+                                               Text="Off by default. It is kept only on this PC, and copies from password managers are skipped. Matches are shared with Gemini only after you approve." />
+                                    <Button Style="{StaticResource GhostButton}" Content="Clear clipboard history" HorizontalAlignment="Left"
+                                            Margin="0,8,0,0" Click="ClearClipboard_Click" />
                                 </StackPanel>
                             </Border>
 

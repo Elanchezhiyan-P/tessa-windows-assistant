@@ -37,7 +37,7 @@ internal static class BuiltInTools
     private static JsonObject Str(string description) => new() { ["type"] = "string", ["description"] = description };
     private static JsonObject Int(string description) => new() { ["type"] = "integer", ["description"] = description };
 
-    public static IEnumerable<ITool> All(ToolContext ctx, MemoryStore memory, AppSettings settings, ReminderStore reminders) => Core()
+    public static IEnumerable<ITool> All(ToolContext ctx, MemoryStore memory, AppSettings settings, ReminderStore reminders, AppFeatures features) => Core()
         .Concat(WindowTools.All())
         .Concat(SystemTools.All())
         .Concat(ScreenTools.All(ctx))
@@ -46,7 +46,11 @@ internal static class BuiltInTools
         .Concat(MemoryTools.All(memory))
         .Concat(EverydayTools.All(ctx))
         .Concat(PowerShellTool.All(settings))
-        .Concat(ReminderTools.All(reminders));
+        .Concat(ReminderTools.All(reminders))
+        .Concat(HistoryTools.All(settings))
+        .Concat(ClipboardTools.All(ctx))
+        .Concat(RoutineTools.All(ctx, features.Routines))
+        .Concat(FeatureTools.All(features.Focus, reminders, settings));
 
     /// <summary>Finds an installed app by (part of) its name in the Start menu list. Null when nothing matches.</summary>
     private static (string Name, string Id)? FindStartApp(string name)

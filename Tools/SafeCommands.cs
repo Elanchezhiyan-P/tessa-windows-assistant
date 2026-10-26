@@ -27,7 +27,10 @@ internal static class SafeCommands
     // Used in "trusted" mode, where everything else runs without asking. A pattern list can't be complete,
     // so it is a safety net, not a sandbox.
     private static readonly System.Text.RegularExpressions.Regex Dangerous = new(
-        @"\b(Remove|Clear|Disable|Uninstall|Stop|Restart|Reset|Format|Initialize)-\w+" +
+        @"\b(Remove|Clear|Disable|Enable|Uninstall|Install|Stop|Restart|Reset|Format|Initialize|Move|Copy|New|Rename|Add|Set|Start|Invoke|" +
+        @"Import|Export|Register|Unregister|Update|Write|Send|Expand|Compress|Grant|Revoke|Block|Unblock|Suspend|Resume|Mount|Dismount|Save|Out|Push|Publish|Enter|Connect|Disconnect)-\w+" +
+        @"|\[(System\.)?(IO|Diagnostics|Reflection|Net|Management)\.|\b(Add-Type|New-Object|Start-Process|Start-Job)\b" +
+        @"|\b(cmd|powershell|pwsh|wscript|cscript|mshta|rundll32|regsvr32|schtasks|robocopy|xcopy|attrib|icacls|takeown)(\.exe)?\b" +
         @"|\b(rm|ri|del|erase|rd|rmdir|taskkill|shutdown|format|diskpart|bcdedit|cipher|vssadmin|wevtutil)\b" +
         @"|\b(Set-ExecutionPolicy|Invoke-Expression|iex|Invoke-WebRequest|iwr|Invoke-RestMethod|irm|curl|wget|Start-BitsTransfer)\b" +
         @"|DownloadString|DownloadFile|-EncodedCommand|-enc\b|FromBase64String" +
@@ -57,7 +60,8 @@ internal static class SafeCommands
         if (string.IsNullOrWhiteSpace(command)) return false;
         command = SafeRounding.Replace(command, "calculated");
         if (command.IndexOfAny(Forbidden) >= 0) return false;
-        if (command.Contains(@"\\")) return false; // UNC paths would make Windows send credentials to another machine
+        // UNC paths (backslash or forward slash) would make Windows send credentials to another machine.
+        if (command.Contains(@"\\") || command.Contains("//")) return false;
 
         foreach (var segment in command.Split('|'))
         {

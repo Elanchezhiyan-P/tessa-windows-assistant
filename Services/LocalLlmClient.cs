@@ -329,16 +329,16 @@ public sealed class LocalLlmClient : LlmClientBase
     {
         try
         {
-            if (File.Exists(ContextPath) && JsonNode.Parse(File.ReadAllText(ContextPath)) is JsonArray saved)
+            if (AtomicFile.ReadAllText(ContextPath, AtomicFile.IsJson) is { } json && JsonNode.Parse(json) is JsonArray saved)
                 foreach (var entry in saved) _history.Add(entry!.DeepClone());
             TrimHistory();
         }
-        catch (Exception ex) when (ex is IOException or JsonException) { _history.Clear(); }
+        catch (JsonException) { _history.Clear(); }
     }
 
     private void SaveHistory()
     {
-        try { File.WriteAllText(ContextPath, _history.ToJsonString()); }
+        try { AtomicFile.WriteAllText(ContextPath, _history.ToJsonString()); }
         catch (IOException) { }
     }
 }

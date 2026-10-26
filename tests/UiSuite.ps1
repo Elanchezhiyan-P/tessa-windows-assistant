@@ -98,7 +98,7 @@ try {
     Toggle $wake; Start-Sleep -Seconds 2
     $on = IsOn $wake
     Toggle $wake; Start-Sleep -Milliseconds 800
-    $chat = try { (Get-Content "$data\transcript.json" -Raw | ConvertFrom-Json) | Where-Object Role -eq 'error' } catch { @() }
+    $chat = try { (python "$PSScriptRoot\read_transcript.py" | ConvertFrom-Json) | Where-Object Role -eq 'error' } catch { @() }
     Check 'wake word switch turns on and off without an error' ($on -and -not ($chat | Where-Object { $_.Text -match 'Speech recognition' })) "on=$on"
 
     $fly = Open-Flyout

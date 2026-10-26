@@ -11,9 +11,8 @@ Everything is in `%AppData%\WinCompanion` (tray menu, *Data folder*):
 |---|---|
 | `apikey.bin` | Your Gemini key, encrypted with Windows DPAPI (readable only by your Windows account on this PC) |
 | `settings.json` | Preferences: model choice, local server address, privacy switches, character |
-| `transcript.json`, `context.*.json` | Your chat history and the model's conversation context |
-| `memory.json` | Facts you asked it to remember |
-| `reminders.json` | Pending reminders |
+| `wincompanion.db` | A local SQLite database with your chat history, the facts you asked it to remember, and pending reminders |
+| `context.*.json` | The model's recent conversation context |
 | `actions.log` | Each action it ran, when, whether you approved it, and a short result |
 | `crash.log` | Error details if something failed (no chat content) |
 | `pets\` | Characters you added yourself |
@@ -39,9 +38,12 @@ With **Local**, requests go only to the server address you set (normally `localh
 - **Voice (Gemini selected):** when *Use Gemini to understand my voice* is on (the default), each phrase you say after pressing the talk key or the wake word is recorded and sent to Google's Gemini to be turned into text. Nothing is recorded or sent until you start talking to her, and recordings are not saved. Turn it off in *Settings, You and her* to use Windows' own speech recognition instead (which may also use Microsoft's online service). With a local model, voice never goes to Gemini.
 - **Web lookup** (when the AI needs current facts) sends only the search words to <https://duckduckgo.com> and reads back the top results.
 - **Weather** asks <https://wttr.in> for the city you name (or, with no city, your approximate location by IP address).
+- **Daily briefing** (when you ask for it or turn it on) fetches the weather from <https://wttr.in> and, for each news topic you list, searches <https://duckduckgo.com> for "<topic> news". Only the city and the topic words leave your PC, and no AI model is involved.
+- **Clipboard history** (off by default) keeps the last 100 pieces of text you copy in `wincompanion.db` on this PC, skipping copies password managers mark as private. If you ask the assistant to search it while Gemini is selected, you are asked before the matches are sent.
+- **Screen text** ("copy the text on my screen") is read by Windows' built-in text recognition on this PC; nothing is sent anywhere.
 - **Web search** opens your browser at a search page; the app itself sends nothing.
-- **Reminders, characters, voice and the local parser** work without internet.
-- **Voice** uses Windows speech recognition. The microphone is used only while the wake word is on or while you are talking.
+- **Reminders, characters and the local parser** work without internet.
+- **Voice** is understood by Gemini when that option is on with Gemini selected (see above), otherwise by Windows speech recognition. The microphone is used only while the wake word is on or while you are talking. Speech diagnostics (levels and outcomes, never the words or audio) go to `speech.log` in the data folder, which is capped at 1 MB.
 
 ## Control
 

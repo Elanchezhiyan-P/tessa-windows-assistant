@@ -42,8 +42,20 @@ public sealed class AppSettings
     public bool VoiceMuted { get; set; }
     /// <summary>Language she listens in (a tag such as "en-IN" or "en-US"). Empty: whatever Windows is set to.</summary>
     public string SpeechLanguage { get; set; } = "";
+    /// <summary>Which microphone to record from (its index in Windows' list). -1 is the Windows default.</summary>
+    public int MicrophoneDevice { get; set; } = -1;
     /// <summary>With Gemini selected, send each recorded phrase to Gemini to be turned into text (more accurate; the audio leaves the PC).</summary>
     public bool SpeechViaGemini { get; set; } = true;
+    /// <summary>Keep the last 100 pieces of text you copy, so you can ask "what was that link I copied?". Off by default: it records what you copy.</summary>
+    public bool ClipboardHistory { get; set; }
+    /// <summary>Show the daily briefing (reminders, weather, headlines) the first time the app starts each day.</summary>
+    public bool BriefingAtStart { get; set; }
+    /// <summary>City for the weather in the briefing. Empty: approximate location.</summary>
+    public string BriefingCity { get; set; } = "";
+    /// <summary>Comma-separated news topics for the briefing, for example "technology, cricket".</summary>
+    public string BriefingTopics { get; set; } = "";
+    /// <summary>The date the briefing was last shown automatically (yyyy-MM-dd).</summary>
+    public string BriefingLastShown { get; set; } = "";
     /// <summary>False until the first-run welcome has been completed or skipped.</summary>
     public bool SetupDone { get; set; }
 
@@ -81,10 +93,10 @@ public sealed class AppSettings
         var settings = new AppSettings();
         try
         {
-            if (File.Exists(FilePath))
-                settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath)) ?? new();
+            var text = AtomicFile.ReadAllText(FilePath, AtomicFile.IsJson);
+            if (text is not null) settings = JsonSerializer.Deserialize<AppSettings>(text) ?? new();
         }
-        catch (Exception ex) when (ex is IOException or JsonException) { }
+        catch (JsonException) { }
         if (string.IsNullOrWhiteSpace(settings.AssistantName)) settings.AssistantName = "Tessa";
         Current = settings;
         return settings;
@@ -92,7 +104,7 @@ public sealed class AppSettings
 
     public void Save()
     {
-        try { File.WriteAllText(FilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true })); }
+        try { AtomicFile.WriteAllText(FilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true })); }
         catch (IOException) { }
     }
 }

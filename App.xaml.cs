@@ -10,7 +10,8 @@ public partial class App : System.Windows.Application
     private System.Windows.Forms.NotifyIcon? _tray;
     private MainWindow? _window;
     private TrayFlyout? _flyout;
-    private HotKey? _hotKey, _talkKey;
+    private HotKey? _hotKey, _talkKey, _captureKey;
+    private CaptureWindow? _capture;
     private Mutex? _singleInstance;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -63,6 +64,9 @@ public partial class App : System.Windows.Application
 
         // Push-to-talk: press, then speak your request.
         _talkKey = TryRegister(helper.Handle, System.Windows.Forms.Keys.V, _window.StartListening, "Ctrl+Alt+V");
+
+        // Quick capture: save a note or to-do without opening the chat.
+        _captureKey = TryRegister(helper.Handle, System.Windows.Forms.Keys.N, () => (_capture ??= new CaptureWindow()).Open(), "Ctrl+Alt+N");
 
         if (firstRun) _window.Welcome();
 
@@ -133,6 +137,7 @@ public partial class App : System.Windows.Application
     {
         _hotKey?.Dispose();
         _talkKey?.Dispose();
+        _captureKey?.Dispose();
         if (_tray is not null) { _tray.Visible = false; _tray.Dispose(); }
         _singleInstance?.Dispose();
         base.OnExit(e);

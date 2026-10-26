@@ -40,7 +40,8 @@ public partial class MainWindow : Window
         _ctx.Window = this;
         _ctx.Settings = _appSettings;
         _ctx.Confirm = ConfirmAsync;
-        _tools = ToolRegistry.CreateDefault(_ctx, _memory, _appSettings, _reminders);
+        _tools = ToolRegistry.CreateDefault(_ctx, _memory, _appSettings, _reminders, CreateFeatures());
+        StartFeatures();
         _pets = new PetController(_appSettings);
         Closing += OnClosing;
 
@@ -48,6 +49,7 @@ public partial class MainWindow : Window
         UpdateMuteButton();
 
         foreach (var entry in _chat.Entries) Messages.Children.Add(ChatBubbles.Create(entry, animate: false));
+        UpdateOlderButton();
         RefreshLayout();
         RefreshChips();
         RefreshModelLabel();
@@ -67,7 +69,7 @@ public partial class MainWindow : Window
         });
         _voice.GeminiSpeechAvailable = () => _appSettings.SpeechViaGemini && !_appSettings.UseLocal
                                              && !string.IsNullOrWhiteSpace(_settings.LoadApiKey());
-        _voice.GeminiTranscribe = async wav => await GeminiSpeech.TranscribeAsync(_settings.LoadApiKey()!, wav);
+        _voice.GeminiTranscribe = async wav => await GeminiSpeech.TranscribeAsync(_settings.LoadApiKey()!, wav, _appSettings.SpeechLanguage);
         _voice.Notice += message => Dispatcher.Invoke(() =>
         {
             if (message.StartsWith("Understanding")) _listeningOrb.Label = message; else Status.Text = message;
@@ -161,9 +163,18 @@ public partial class MainWindow : Window
         TabAi.IsChecked = true;
         MuteSwitch.IsChecked = _appSettings.VoiceMuted;
         SpeechLangBox.Text = _appSettings.SpeechLanguage;
+        MicBox.Items.Clear();
+        MicBox.Items.Add("Windows default");
+        foreach (var name in MicRecorder.DeviceNames()) MicBox.Items.Add(name);
+        MicBox.SelectedIndex = _appSettings.MicrophoneDevice >= 0 && _appSettings.MicrophoneDevice + 1 < MicBox.Items.Count
+            ? _appSettings.MicrophoneDevice + 1 : 0;
         GeminiSpeechSwitch.IsChecked = _appSettings.SpeechViaGemini;
+        ClipboardHistorySwitch.IsChecked = _appSettings.ClipboardHistory;
+        BriefingSwitch.IsChecked = _appSettings.BriefingAtStart;
+        BriefingCityBox.Text = _appSettings.BriefingCity;
+        BriefingTopicsBox.Text = _appSettings.BriefingTopics;
         AboutName.Text = _appSettings.AssistantName;
-        AboutVersion.Text = "Version " + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0");
+        AboutVersion.Text = "Version " + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "2.0.0");
         ProfileName.Text = _appSettings.UserName;
         ProfileNick.Text = _appSettings.UserNickname;
         AssistantNameBox.Text = _appSettings.AssistantName;
@@ -343,7 +354,12 @@ public partial class MainWindow : Window
         _appSettings.SetProfile(ProfileName.Text, ProfileNick.Text, AssistantNameBox.Text, VoiceMaleSeg.IsChecked == true);
         _appSettings.VoiceMuted = MuteSwitch.IsChecked == true;
         _appSettings.SpeechLanguage = SpeechLangBox.Text.Trim();
+        _appSettings.MicrophoneDevice = MicBox.SelectedIndex - 1; // item 0 is "Windows default"
         _appSettings.SpeechViaGemini = GeminiSpeechSwitch.IsChecked == true;
+        _appSettings.ClipboardHistory = ClipboardHistorySwitch.IsChecked == true;
+        _appSettings.BriefingAtStart = BriefingSwitch.IsChecked == true;
+        _appSettings.BriefingCity = BriefingCityBox.Text.Trim();
+        _appSettings.BriefingTopics = BriefingTopicsBox.Text.Trim();
         if (_appSettings.VoiceMuted) _speaker.SpeakAsyncCancelAll();
         UpdateMuteButton();
         _appSettings.Save();
@@ -391,6 +407,36 @@ public partial class MainWindow : Window
         RefreshLayout();
     }
 
+    private Button? _olderButton;
+
+    // A "Show older messages" button at the top of the chat while the database holds more than what is on screen.
+    private void UpdateOlderButton()
+    {
+        if (_olderButton is not null) Messages.Children.Remove(_olderButton);
+        if (!_chat.HasOlder) return;
+        _olderButton ??= CreateOlderButton();
+        Messages.Children.Insert(0, _olderButton);
+    }
+
+    private Button CreateOlderButton()
+    {
+        var button = new Button
+        {
+            Content = "Show older messages",
+            Style = (Style)FindResource("GhostButton"),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 4, 0, 8)
+        };
+        button.Click += (_, _) =>
+        {
+            var older = _chat.LoadOlder();
+            var index = _olderButton is not null && Messages.Children.Contains(_olderButton) ? 1 : 0;
+            foreach (var entry in older) Messages.Children.Insert(index++, ChatBubbles.Create(entry, animate: false));
+            UpdateOlderButton();
+        };
+        return button;
+    }
+
     private void NewChat_Click(object sender, RoutedEventArgs e)
     {
         _speaker.SpeakAsyncCancelAll();
@@ -398,6 +444,7 @@ public partial class MainWindow : Window
         LlmClientBase.DeleteSavedContexts();
         _chat.Clear();
         Messages.Children.Clear();
+        _olderButton = null;
         RefreshLayout();
         Input.Focus();
     }
@@ -423,7 +470,7 @@ public partial class MainWindow : Window
             client = new GeminiClient(key, _tools, ConfirmAsync, _log, _memory, SharedActiveApp);
         }
 
-        client.ToolCalled += call => Dispatcher.Invoke(() => AddMessage("tool", call));
+        client.ToolCalled += call => Dispatcher.Invoke(() => { NoteToolCall(call); AddMessage("tool", call); });
         client.ToolFinished += result => Dispatcher.Invoke(() => AddMessage("tool", result));
         _ctx.Llm = client;
         _llm = client;
@@ -485,6 +532,15 @@ public partial class MainWindow : Window
     /// <param name="sendText">What is sent to the model, when it differs from what is displayed.</param>
     private async Task SubmitAsync(string display, bool spoken, string? sendText = null)
     {
+        // Routines, focus mode, the briefing and chat export are handled right here too.
+        if (await TryHandleFeatureAsync(sendText ?? display) is { } featureReply)
+        {
+            AddMessage("user", display);
+            AddMessage("assistant", featureReply);
+            if (spoken) Speak(featureReply);
+            return;
+        }
+
         // Reminders are handled right here: no model, no internet, no quota.
         if (LocalCommands.TryHandle(sendText ?? display, _reminders) is { } localReply)
         {
@@ -504,6 +560,7 @@ public partial class MainWindow : Window
             var reply = await client.SendAsync(sendText ?? display);
             AddMessage("assistant", reply.Length > 0 ? reply : "(no reply)");
             if (spoken) Speak(reply);
+            ShowScreenFollowUps();
         }
         catch (LlmException ex)
         {
@@ -562,6 +619,8 @@ public partial class MainWindow : Window
 
     private void OnReminderDue(Reminder reminder, bool missed)
     {
+        if (HoldForFocus(reminder)) return;
+
         var text = $"⏰ **Reminder:** {reminder.Message}";
         if (missed) text += $"\n\n(missed: it was due {reminder.Due:ddd d MMM, h:mm tt})";
 
@@ -626,6 +685,7 @@ public partial class MainWindow : Window
         HeaderText.Text = _appSettings.AssistantName;
         _voice.SetWakePhrase(_appSettings.WakePhrase);
         _voice.SpeechLanguage = _appSettings.SpeechLanguage;
+        _voice.MicrophoneDevice = _appSettings.MicrophoneDevice;
         try { _speaker.SelectVoiceByHints(_appSettings.VoiceGender == "male" ? System.Speech.Synthesis.VoiceGender.Male : System.Speech.Synthesis.VoiceGender.Female); }
         catch { /* keep the default voice */ }
         IdentityChanged?.Invoke();
@@ -678,7 +738,7 @@ public partial class MainWindow : Window
 
     private void Speak(string text)
     {
-        if (_appSettings.VoiceMuted) return;
+        if (_appSettings.VoiceMuted || FocusIsQuiet) return;
         // Strip markdown marks so the voice doesn't read out asterisks.
         var clean = text.Replace("*", "").Replace("`", "").Replace("#", "");
         _speaker.SpeakAsyncCancelAll();

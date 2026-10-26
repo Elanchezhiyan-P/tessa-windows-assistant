@@ -81,7 +81,7 @@ foreach ($i in 1..40) { Start-Sleep -Milliseconds 500; $main = ByProcess $app.Id
 if (-not $main) { throw 'The app window never appeared.' }
 
 function Ask([string]$text, [ValidateSet('none', 'allow', 'deny')][string]$card = 'none', [int]$timeout = 60) {
-    $read = { try { @(Get-Content "$data\transcript.json" -Raw | ConvertFrom-Json) } catch { @() } }
+    $read = { try { @(python "$PSScriptRoot\read_transcript.py" | ConvertFrom-Json) } catch { @() } }
     $before = (& $read).Count
     # Look the window up again each time: the app resizes as the chat grows, and an old reference can go stale.
     foreach ($try in 1..25) {
