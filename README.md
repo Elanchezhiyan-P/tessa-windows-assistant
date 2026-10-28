@@ -8,6 +8,10 @@ you can keep everything on your own machine.
 > **Version 2.0.0.** Windows 10 and 11, 64-bit. New in 2.0: Gemini voice, a local database for chat history, memory and reminders (data from 1.x is not imported), quick capture, clipboard history, routines, focus mode, a daily briefing and screen text. It has been tested thoroughly on the author's PC (Windows 11) and
 > has had little testing on other setups, so please report problems: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Demo
+
+▶️ **[Watch the demo video](https://github.com/Elanchezhiyan-P/tessa-windows-assistant/blob/dev/video/Tessa.mp4)** (about 23 MB, plays in your browser)
+
 ## Features
 
 ### Ask about your PC, or have her do things
