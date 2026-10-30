@@ -28,14 +28,14 @@ Set `WINCOMPANION_DEBUG_LLM=1` to log every request to and reply from the model 
 
 ## Tests
 
-The tests drive the real app, so run them on a PC you aren't using. They back up and restore your settings.
+| Test | What it covers | How to run |
+|---|---|---|
+| Unit tests (`tests\UnitTests`, xUnit) | The PowerShell safety rules, atomic writes, the database stores, focus, briefing and export logic, the reminder parser. CI runs them on every push and pull request. | `dotnet test tests\UnitTests\UnitTests.csproj` |
+| `tests\ToolSuite.ps1` | Every tool, through the real window, using a scripted fake model (`tests\fake_llm.py`): approval cards, file moves, windows, clipboard, reminders... Needs Python 3. | `powershell -File tests\ToolSuite.ps1` |
+| `tests\UiSuite.ps1` | Every tray-menu item and Settings control. | `powershell -File tests\UiSuite.ps1` |
 
-| Test | What it covers |
-|---|---|
-| `tests\ToolSuite.ps1` | Every tool, through the real window, using a scripted fake model (`tests\fake_llm.py`): approval cards, file moves, windows, clipboard, reminders... Needs Python 3. |
-| `tests\UiSuite.ps1` | Every tray-menu item and Settings control. |
-
-Run `powershell -File tests\ToolSuite.ps1` and `powershell -File tests\UiSuite.ps1`. Add a case when you add a tool or a setting.
+The two PowerShell suites drive the real app, so run them on a PC you aren't using. They back up and restore your data folder.
+Add a unit test when you add logic, and a suite case when you add a tool or a setting.
 
 ## Where things are
 
@@ -45,19 +45,19 @@ Run `powershell -File tests\ToolSuite.ps1` and `powershell -File tests\UiSuite.p
 | `Tools/` | Everything the assistant can do. One class per area; add a tool by adding a `DelegateTool` |
 | `UI/`, `*.xaml` | Windows and styles |
 | `Assets/Pets/` | Characters (a sprite sheet and `pet.json` each) |
-| `tools/` | Python scripts that generate characters (`video_to_pet.py` cuts them out of video) |
+| `Tools/*.py` | Python scripts that generate characters (`video_to_pet.py` cuts them out of video) |
 | `installer/`, `build/` | Inno Setup script, release build and signing scripts |
 
 ## Adding a character
 
-Run `tools/video_to_pet.py` on a short clip of an animal (see the top of the script), or draw one and add a `pet.json`. The format and
+Run `Tools/video_to_pet.py` on a short clip of an animal (see the top of the script), or draw one and add a `pet.json`. The format and
 the licences of the built-in characters are in [Assets/Pets/CREDITS.md](Assets/Pets/CREDITS.md). Check the result with
 `dotnet run -- --pet <id>`.
 
 ## Sending a pull request
 
 1. Fork, create a branch, make your change, and build with no warnings.
-2. Run the two test scripts above.
+2. Run the unit tests (and the two test scripts if you touched tools or UI).
 3. Describe what you changed and why, and what you tested. Screenshots help for UI changes.
 4. By submitting a pull request you agree that your contribution is licensed under the MIT licence of this project.
 
