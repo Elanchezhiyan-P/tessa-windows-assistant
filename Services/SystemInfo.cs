@@ -121,7 +121,7 @@ public static class SystemInfo
         return list;
     }
 
-    private static List<DriveSpec> ReadDrives()
+    public static List<DriveSpec> ReadDrives()
     {
         var list = new List<DriveSpec>();
         foreach (var drive in DriveInfo.GetDrives())

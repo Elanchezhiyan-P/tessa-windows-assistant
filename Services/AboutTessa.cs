@@ -53,6 +53,10 @@ public static class AboutTessa
         • Clipboard: summarise, translate, fix or shorten what you copied; optional history you can search (/clipboard).
         • Notes and to-dos: /note or Ctrl+Alt+N, saved as Markdown.
         • Daily briefing (/briefing), focus mode and pomodoro (/focus), and routines you teach me (/routine).
+        • Copy text from the screen: press Ctrl+Alt+T (or /snip) and drag a box. It is read on your PC and copied, like the Snipping Tool's text actions.
+        • Selected text: select text in any app and press Ctrl+Alt+A to explain, fix, shorten or translate it.
+        • Comfort: quiet hours (/quiet), warnings for low disk or battery (/health), colour themes (/theme), and a voice and speed you choose (/voice).
+        • Memory: see and delete what I remember about you (/memory, or Settings, You and her).
         • Health nudges: water, posture, eye rest and stretching (/nudge); held during focus sessions.
         • Search your whole chat history (/search or Ctrl+F) and undo file moves and tidy-ups (/undo).
         • Updates and support: /update checks GitHub, /diagnostics copies details for a bug report.

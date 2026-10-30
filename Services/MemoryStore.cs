@@ -5,6 +5,8 @@ namespace WinCompanion.Services;
 
 public sealed record Memory(string Text, DateTime Added);
 
+public sealed record MemoryItem(long Id, string Text, DateTime Added);
+
 /// <summary>Long-term facts about the user, saved in the local database and fed into every request.</summary>
 public sealed class MemoryStore
 {
@@ -64,6 +66,52 @@ public sealed class MemoryStore
             catch (SqliteException) { }
         }
         return removed == 0 ? $"I had nothing matching '{match}'." : $"Forgot {removed} item(s) matching '{match}'.";
+    }
+
+    /// <summary>Everything she remembers, oldest first, with the ids the Settings list needs to delete one.</summary>
+    public IReadOnlyList<MemoryItem> List()
+    {
+        lock (_gate)
+        {
+            try
+            {
+                using var db = Database.Open();
+                return All(db).Select(r => new MemoryItem(r.Id, r.Text, r.Added)).ToList();
+            }
+            catch (SqliteException) { return []; }
+        }
+    }
+
+    public bool Delete(long id)
+    {
+        lock (_gate)
+        {
+            try
+            {
+                using var db = Database.Open();
+                using var command = db.CreateCommand();
+                command.CommandText = "DELETE FROM memories WHERE id = $id";
+                command.Parameters.AddWithValue("$id", id);
+                return command.ExecuteNonQuery() > 0;
+            }
+            catch (SqliteException) { return false; }
+        }
+    }
+
+    /// <summary>Forgets everything. Returns how many facts were removed.</summary>
+    public int Clear()
+    {
+        lock (_gate)
+        {
+            try
+            {
+                using var db = Database.Open();
+                using var command = db.CreateCommand();
+                command.CommandText = "DELETE FROM memories";
+                return command.ExecuteNonQuery();
+            }
+            catch (SqliteException) { return 0; }
+        }
     }
 
     public string Describe()

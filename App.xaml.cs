@@ -10,7 +10,7 @@ public partial class App : System.Windows.Application
     private System.Windows.Forms.NotifyIcon? _tray;
     private MainWindow? _window;
     private TrayFlyout? _flyout;
-    private HotKey? _hotKey, _talkKey, _captureKey;
+    private HotKey? _hotKey, _talkKey, _captureKey, _selectKey, _snipKey;
     private CaptureWindow? _capture;
     private Mutex? _singleInstance;
 
@@ -30,6 +30,7 @@ public partial class App : System.Windows.Application
         // First run: ask what to call the user and what to call her, before anything else appears.
         var firstRun = false;
         var saved = AppSettings.Load();
+        WinCompanion.MainWindow.ApplySavedTheme(saved);
         if (!saved.SetupDone && Environment.GetEnvironmentVariable("WINCOMPANION_SKIP_SETUP") != "1")
         {
             new SetupWindow(saved).ShowDialog();
@@ -68,7 +69,17 @@ public partial class App : System.Windows.Application
         // Quick capture: save a note or to-do without opening the chat.
         _captureKey = TryRegister(helper.Handle, System.Windows.Forms.Keys.N, () => (_capture ??= new CaptureWindow()).Open(), "Ctrl+Alt+N");
 
-        if (firstRun) _window.Welcome();
+        // Ask about selected text: select something in any app and press the key.
+        _selectKey = TryRegister(helper.Handle, System.Windows.Forms.Keys.A, _window.AskAboutSelection, "Ctrl+Alt+A");
+
+        // Snip text: drag a box on the screen and copy the text inside it.
+        _snipKey = TryRegister(helper.Handle, System.Windows.Forms.Keys.T, _window.SnipText, "Ctrl+Alt+T");
+
+        if (firstRun)
+        {
+            _window.Welcome();
+            _window.ShowTour(); // a short walkthrough of the shortcuts and commands, on a new install only
+        }
 
         // Handy for testing and for launching straight into a view.
         if (e.Args.Contains("--settings")) _window.OpenSettings();
@@ -138,6 +149,8 @@ public partial class App : System.Windows.Application
         _hotKey?.Dispose();
         _talkKey?.Dispose();
         _captureKey?.Dispose();
+        _selectKey?.Dispose();
+        _snipKey?.Dispose();
         if (_tray is not null) { _tray.Visible = false; _tray.Dispose(); }
         _singleInstance?.Dispose();
         base.OnExit(e);

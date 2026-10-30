@@ -63,6 +63,8 @@
                                          IsChecked="True" Checked="Tab_Changed" />
                             <RadioButton x:Name="TabYou" Style="{StaticResource Segment}" Content="You and her" GroupName="tab"
                                          Checked="Tab_Changed" />
+                            <RadioButton x:Name="TabLook" Style="{StaticResource Segment}" Content="Look &amp; alerts" GroupName="tab"
+                                         Checked="Tab_Changed" />
                             <RadioButton x:Name="TabSafety" Style="{StaticResource Segment}" Content="Safety" GroupName="tab"
                                          Checked="Tab_Changed" />
                             <RadioButton x:Name="TabPc" Style="{StaticResource Segment}" Content="This PC" GroupName="tab"
@@ -152,6 +154,13 @@
                                             <RadioButton x:Name="VoiceMaleSeg" Style="{StaticResource Segment}" Content="Male" GroupName="voice" />
                                         </StackPanel>
                                     </Border>
+                                    <TextBlock Text="Windows voice (Automatic follows the Female or Male choice)" Style="{StaticResource FieldLabel}" />
+                                    <ComboBox x:Name="VoiceBox" Margin="0,4,0,0" AutomationProperties.Name="Voice" />
+                                    <TextBlock x:Name="VoiceSpeedLabel" Text="Speed: normal" Style="{StaticResource FieldLabel}" />
+                                    <Slider x:Name="VoiceSpeed" Minimum="-6" Maximum="6" TickFrequency="1" IsSnapToTickEnabled="True"
+                                            Margin="0,4,0,0" ValueChanged="VoiceSpeed_Changed" AutomationProperties.Name="Speaking speed" />
+                                    <Button Style="{StaticResource GhostButton}" Content="Hear this voice" HorizontalAlignment="Left"
+                                            Margin="0,10,0,0" Click="PreviewVoice_Click" />
                                     <CheckBox x:Name="GeminiSpeechSwitch" Style="{StaticResource Switch}" Margin="2,14,0,0"
                                               Content="Use Gemini to understand my voice (much more accurate; sends the recording to Google)" />
                                     <TextBlock Text="Language she listens in (for example en-IN or en-US; empty uses Windows' setting)" Style="{StaticResource FieldLabel}" />
@@ -186,6 +195,77 @@
                                             Margin="0,10,0,0" Click="PreviewPet_Click" />
                                     <TextBlock x:Name="PetHint" Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap"
                                                Margin="2,6,0,0" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="What she remembers about you" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"
+                                               Text="These facts are added to every request, so with Gemini they are sent to Google. Delete any you don't want her to keep." />
+                                    <StackPanel x:Name="MemoryList" Margin="0,10,0,0" />
+                                    <Grid Margin="0,6,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="MemoryBox" Style="{StaticResource Field}" MaxLength="300" KeyDown="MemoryBox_KeyDown" />
+                                        <Button Grid.Column="1" Style="{StaticResource GhostButton}" Content="Remember" Margin="8,0,0,0" Click="MemoryAdd_Click" />
+                                    </Grid>
+                                    <Button Style="{StaticResource GhostButton}" Content="Forget everything" HorizontalAlignment="Left"
+                                            Margin="0,10,0,0" Click="MemoryClear_Click" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Look and alerts -->
+                        <StackPanel x:Name="PageLook" Visibility="Collapsed">
+                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,8,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Colours" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <Border Background="#14FFFFFF" CornerRadius="11" Padding="3" HorizontalAlignment="Left" Margin="0,10,0,0">
+                                        <WrapPanel x:Name="ThemeChoices" MaxWidth="520" />
+                                    </Border>
+                                    <TextBlock Text="Your own accent colour (for example #FF8800; empty uses the theme's)" Style="{StaticResource FieldLabel}" />
+                                    <TextBox x:Name="AccentBox" Style="{StaticResource Field}" MaxLength="7" TextChanged="Accent_Changed" />
+                                    <TextBlock x:Name="ThemeHint" Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,6,0,0" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Quiet hours" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Text="No sound, voice, character or pop-ups in this window of the day. Nudges and warnings are skipped; anything missed waits in the chat."
+                                               Style="{StaticResource FieldLabel}" TextWrapping="Wrap" />
+                                    <CheckBox x:Name="QuietSwitch" Style="{StaticResource Switch}" Margin="2,10,0,0" Content="Keep quiet during these hours" />
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="From (for example 22:00)" Style="{StaticResource FieldLabel}" />
+                                            <TextBox x:Name="QuietStartBox" Style="{StaticResource Field}" MaxLength="8" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Until (for example 07:00)" Style="{StaticResource FieldLabel}" />
+                                            <TextBox x:Name="QuietEndBox" Style="{StaticResource Field}" MaxLength="8" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <CheckBox x:Name="QuietOwnSwitch" Style="{StaticResource Switch}" Margin="2,14,0,0"
+                                              Content="Also keep the reminders I set myself quiet (off, so an alarm is never missed)" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Warnings" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <CheckBox x:Name="HealthSwitch" Style="{StaticResource Switch}" Margin="2,12,0,0"
+                                              Content="Tell me when a drive is nearly full or the battery is low" />
+                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,6,0,0"
+                                               Text="Checked every few minutes on this PC. A drive counts as low under 5% free (between 10 and 30 GB); the battery at 20% and 10%. Each problem is reported once." />
+                                    <TextBlock x:Name="HealthNow" Foreground="{StaticResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="2,10,0,0" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -277,6 +357,8 @@
                                                 Click="UpdateCheck_Click" />
                                         <Button Style="{StaticResource GhostButton}" Content="Copy diagnostics" Margin="0,0,8,8"
                                                 Click="DiagnosticsCopy_Click" />
+                                        <Button Style="{StaticResource GhostButton}" Content="Show the tour" Margin="0,0,8,8"
+                                                Click="Tour_Click" />
                                     </WrapPanel>
                                     <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,4,0,0"
                                                Text="MIT licence. Copyright (c) 2026 Elanchezhiyan P. Character credits are in Assets\Pets\CREDITS.md." />

@@ -40,6 +40,29 @@ public sealed class AppSettings
     public string VoiceGender { get; set; } = "female";
     /// <summary>True: she never speaks aloud (replies and reminders are text only).</summary>
     public bool VoiceMuted { get; set; }
+    /// <summary>Name of the installed Windows voice to speak with. Empty: pick one by <see cref="VoiceGender"/>.</summary>
+    public string VoiceName { get; set; } = "";
+    /// <summary>Speaking speed from -6 (slowest) to 6 (fastest); 0 is normal.</summary>
+    public int VoiceRate { get; set; }
+
+    /// <summary>Key of the window colour theme (see ThemeCatalog).</summary>
+    public string Theme { get; set; } = "midnight";
+    /// <summary>A colour such as #FF8800 that replaces the theme's accent. Empty uses the theme's own.</summary>
+    public string AccentColor { get; set; } = "";
+
+    /// <summary>Between <see cref="QuietStart"/> and <see cref="QuietEnd"/> she stays silent: no sound, voice, character or pop-up.</summary>
+    public bool QuietHours { get; set; }
+    public string QuietStart { get; set; } = "22:00";
+    public string QuietEnd { get; set; } = "07:00";
+    /// <summary>Also keep reminders the user set themselves quiet during quiet hours (they still wait in the chat). Off, so an alarm is never missed.</summary>
+    public bool QuietOwnReminders { get; set; }
+
+    /// <summary>Warn when a drive is nearly full or the battery is low.</summary>
+    public bool HealthAlerts { get; set; } = true;
+
+    /// <summary>True once the first-run tour has been shown or skipped.</summary>
+    public bool TourDone { get; set; }
+
     /// <summary>Language she listens in (a tag such as "en-IN" or "en-US"). Empty: whatever Windows is set to.</summary>
     public string SpeechLanguage { get; set; } = "";
     /// <summary>Which microphone to record from (its index in Windows' list). -1 is the Windows default.</summary>

@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using WinCompanion.Services;
 using WinCompanion.Tools;
+using WinCompanion.UI;
 
 namespace WinCompanion;
 
@@ -50,6 +51,9 @@ public partial class MainWindow
                 return _reminders.Describe();
             case "clipboard":
                 return ClipboardCommand(args);
+            case "snip":
+                SnipText();
+                return "";
             case "ocr":
                 if (_ctx.Executor is null) return "Screen text isn't ready yet.";
                 var scope = args.Equals("screen", StringComparison.OrdinalIgnoreCase) ? "screen" : "active_window";
@@ -62,6 +66,23 @@ public partial class MainWindow
                 return ModelCommand(args);
             case "voice":
                 return VoiceCommand(args);
+            case "theme":
+                return ThemeCommand(args);
+            case "quiet":
+                return QuietCommand(args);
+            case "health":
+                return HealthCommand(args);
+            case "memory":
+                var remembered = _memory.List();
+                return remembered.Count == 0
+                    ? "I don't remember anything about you yet. Tell me “remember that …”."
+                    : "What I remember (these are sent to the model with each request; /forget removes one):\n" + string.Join('\n', remembered.Select(m => $"• {m.Text}"));
+            case "forget":
+                if (args.Length == 0) return "Say what to forget, for example /forget project folder, or /forget all.";
+                return args.Equals("all", StringComparison.OrdinalIgnoreCase) ? $"Forgot {_memory.Clear()} thing(s)." : _memory.Forget(args);
+            case "tour":
+                ShowTour();
+                return "";
             case "settings":
                 if (!_settingsOpen) Settings_Click(this, new RoutedEventArgs());
                 else CancelSettings_Click(this, new RoutedEventArgs());
@@ -171,20 +192,122 @@ public partial class MainWindow
 
     private string VoiceCommand(string args)
     {
-        bool? muted = args.ToLowerInvariant() switch
+        var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var first = parts.Length > 0 ? parts[0].ToLowerInvariant() : "";
+
+        if (first == "list") return VoiceList();
+        if (first == "speed") return VoiceSpeedCommand(parts.Length > 1 ? parts[1] : "");
+        if (first.Length > 0 && first is not ("on" or "off")) return VoiceByName(args);
+
+        bool? muted = first switch
         {
             "on" => false,
             "off" => true,
             _ => null
         };
         if (muted is null)
-            return (_appSettings.VoiceMuted ? "Her voice is off." : "Her voice is on.") + " Use /voice on or /voice off.";
+            return (_appSettings.VoiceMuted ? "Her voice is off." : "Her voice is on.") +
+                   $" Voice: {(_appSettings.VoiceName.Length > 0 ? _appSettings.VoiceName : "automatic")}, speed {SpeedText(_appSettings.VoiceRate)}. " +
+                   "Use /voice on, off, list, speed 2, or part of a voice name.";
 
         _appSettings.VoiceMuted = muted.Value;
         _appSettings.Save();
         if (muted.Value) _speaker.SpeakAsyncCancelAll();
         UpdateMuteButton();
         return muted.Value ? "Voice muted." : "Voice on.";
+    }
+
+    private IEnumerable<string> InstalledVoiceNames()
+    {
+        try { return _speaker.GetInstalledVoices().Where(v => v.Enabled).Select(v => v.VoiceInfo.Name).ToList(); }
+        catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.COMException) { return []; }
+    }
+
+    private string VoiceList()
+    {
+        var names = InstalledVoiceNames().ToList();
+        return names.Count == 0
+            ? "No Windows voices are installed."
+            : "Voices on this PC (pick one with /voice <part of the name>):\n" + string.Join('\n', names.Select(n => $"• {n}"));
+    }
+
+    private string VoiceByName(string wanted)
+    {
+        var matches = InstalledVoiceNames().Where(n => n.Contains(wanted, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (matches.Count == 0) return $"I have no voice matching \"{wanted}\". Try /voice list.";
+        if (matches.Count > 1 && !matches.Any(n => n.Equals(wanted, StringComparison.OrdinalIgnoreCase)))
+            return "That matches more than one voice: " + string.Join(", ", matches) + ". Be more specific.";
+
+        _appSettings.VoiceName = matches.FirstOrDefault(n => n.Equals(wanted, StringComparison.OrdinalIgnoreCase)) ?? matches[0];
+        _appSettings.Save();
+        ApplyVoice();
+        _speaker.SpeakAsyncCancelAll();
+        if (!_appSettings.VoiceMuted) _speaker.SpeakAsync("Hello, this is my new voice.");
+        return $"Now using {_appSettings.VoiceName}.";
+    }
+
+    private string VoiceSpeedCommand(string text)
+    {
+        if (!int.TryParse(text, out var rate)) return $"Speed is {SpeedText(_appSettings.VoiceRate)}. Use /voice speed with a number from -6 (slow) to 6 (fast), or 0 for normal.";
+        _appSettings.VoiceRate = Math.Clamp(rate, -6, 6);
+        _appSettings.Save();
+        ApplyVoice();
+        return $"Speed set to {SpeedText(_appSettings.VoiceRate)}.";
+    }
+
+    private string ThemeCommand(string args)
+    {
+        if (args.Length == 0)
+            return $"Theme: {ThemeCatalog.Find(_appSettings.Theme).Name}{(_appSettings.AccentColor.Length > 0 ? $" with accent {_appSettings.AccentColor}" : "")}.\n" +
+                   $"Themes: {string.Join(", ", ThemeCatalog.All.Select(t => t.Key))}. Use /theme <name>, /theme #FF8800 for your own accent, or /theme reset.";
+
+        if (args.Equals("reset", StringComparison.OrdinalIgnoreCase))
+        {
+            _appSettings.Theme = "midnight";
+            _appSettings.AccentColor = "";
+        }
+        else if (ThemeCatalog.TryParseAccent(args, out var accent))
+        {
+            _appSettings.AccentColor = $"#{accent.R:X2}{accent.G:X2}{accent.B:X2}";
+        }
+        else if (ThemeCatalog.All.FirstOrDefault(t => t.Key.Equals(args, StringComparison.OrdinalIgnoreCase)) is { } theme)
+        {
+            _appSettings.Theme = theme.Key;
+            _appSettings.AccentColor = "";
+        }
+        else return $"I don't know a theme called \"{args}\". Try {string.Join(", ", ThemeCatalog.All.Select(t => t.Key))}.";
+
+        _appSettings.Save();
+        ApplyTheme(_appSettings.Theme, _appSettings.AccentColor);
+        return $"Theme: {ThemeCatalog.Find(_appSettings.Theme).Name}{(_appSettings.AccentColor.Length > 0 ? $" with accent {_appSettings.AccentColor}" : "")}.";
+    }
+
+    private string QuietCommand(string args)
+    {
+        if (args.Length == 0) return QuietHours.Describe(_appSettings);
+
+        if (args.Equals("on", StringComparison.OrdinalIgnoreCase)) _appSettings.QuietHours = true;
+        else if (args.Equals("off", StringComparison.OrdinalIgnoreCase)) _appSettings.QuietHours = false;
+        else if (QuietHours.TryParseRange(args, out var start, out var end))
+        {
+            _appSettings.QuietStart = QuietHours.Format(start);
+            _appSettings.QuietEnd = QuietHours.Format(end);
+            _appSettings.QuietHours = true;
+        }
+        else return "Use /quiet on, /quiet off, or a range like /quiet 22:00-07:00.";
+
+        _appSettings.Save();
+        return QuietHours.Describe(_appSettings);
+    }
+
+    private string HealthCommand(string args)
+    {
+        if (args.Equals("on", StringComparison.OrdinalIgnoreCase) || args.Equals("off", StringComparison.OrdinalIgnoreCase))
+        {
+            _appSettings.HealthAlerts = args.Equals("on", StringComparison.OrdinalIgnoreCase);
+            _appSettings.Save();
+        }
+        return HealthReport();
     }
 
     // ---- Suggestions ---------------------------------------------------------------------------------

@@ -42,6 +42,7 @@ public partial class MainWindow : Window
         _ctx.Confirm = ConfirmAsync;
         _tools = ToolRegistry.CreateDefault(_ctx, _memory, _appSettings, _reminders, CreateFeatures());
         StartFeatures();
+        StartHealthMonitor();
         _pets = new PetController(_appSettings);
         Closing += OnClosing;
 
@@ -185,6 +186,7 @@ public partial class MainWindow : Window
         SettingsNote.Text = note ?? "";
         UpdateProviderGroups();
         ShowSystemPanel();
+        LoadPersonalization();
 
         _settingsOpen = true;
         RefreshLayout();
@@ -198,7 +200,9 @@ public partial class MainWindow : Window
         e.Cancel = true;
         _speaker.SpeakAsyncCancelAll();
         ResolveConfirm(false);
+        if (_settingsOpen) RevertPersonalization(); // an unsaved theme or voice preview is dropped
         _settingsOpen = false;
+        if (_selection is not null) ClearSelection();
         RefreshLayout();
         Hide();
     }
@@ -268,10 +272,10 @@ public partial class MainWindow : Window
 
     private void Tab_Changed(object sender, RoutedEventArgs e)
     {
-        if (PageAi is null || PageYou is null || PageSafety is null || PagePc is null || PageAbout is null) return; // fires during InitializeComponent
-        var page = TabYou.IsChecked == true ? PageYou : TabSafety.IsChecked == true ? PageSafety : TabPc.IsChecked == true ? PagePc
-            : TabAbout.IsChecked == true ? PageAbout : PageAi;
-        foreach (var p in new[] { PageAi, PageYou, PageSafety, PagePc, PageAbout }) p.Visibility = p == page ? Visibility.Visible : Visibility.Collapsed;
+        if (PageAi is null || PageYou is null || PageLook is null || PageSafety is null || PagePc is null || PageAbout is null) return; // fires during InitializeComponent
+        var page = TabYou.IsChecked == true ? PageYou : TabLook.IsChecked == true ? PageLook : TabSafety.IsChecked == true ? PageSafety
+            : TabPc.IsChecked == true ? PagePc : TabAbout.IsChecked == true ? PageAbout : PageAi;
+        foreach (var p in new[] { PageAi, PageYou, PageLook, PageSafety, PagePc, PageAbout }) p.Visibility = p == page ? Visibility.Visible : Visibility.Collapsed;
         page.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)));
     }
 
@@ -324,6 +328,7 @@ public partial class MainWindow : Window
 
     private void SaveSettings_Click(object sender, RoutedEventArgs e)
     {
+        if (!PersonalizationValid()) return;
         var local = ProviderLocal.IsChecked == true;
 
         if (local)
@@ -363,6 +368,7 @@ public partial class MainWindow : Window
         _appSettings.BriefingCity = BriefingCityBox.Text.Trim();
         _appSettings.BriefingTopics = BriefingTopicsBox.Text.Trim();
         _appSettings.CheckSystem = CheckSystemSwitch.IsChecked == true;
+        SavePersonalization();
         if (_appSettings.VoiceMuted) _speaker.SpeakAsyncCancelAll();
         UpdateMuteButton();
         _appSettings.Save();
@@ -379,6 +385,7 @@ public partial class MainWindow : Window
 
     private void CancelSettings_Click(object sender, RoutedEventArgs e)
     {
+        RevertPersonalization();
         _settingsOpen = false;
         RefreshLayout();
         Input.Focus();
@@ -444,6 +451,7 @@ public partial class MainWindow : Window
     {
         _speaker.SpeakAsyncCancelAll();
         _llm?.ClearHistory();
+        ClearSelection();
         LlmClientBase.DeleteSavedContexts();
         _chat.Clear();
         Messages.Children.Clear();
@@ -555,6 +563,17 @@ public partial class MainWindow : Window
             return;
         }
 
+        // After Ctrl+Alt+A, what is typed is a question about the selected text (until Done, a new chat, or ten minutes).
+        if (!spoken && sendText is null && _selection is not null)
+        {
+            if (HasSelection)
+            {
+                await RunSelectionAsync(SelectionPrompts.Custom(display));
+                return;
+            }
+            ClearSelection();
+        }
+
         // Routines, focus mode, the briefing and chat export are handled right here too.
         if (await TryHandleFeatureAsync(sendText ?? display) is { } featureReply)
         {
@@ -644,11 +663,17 @@ public partial class MainWindow : Window
     {
         if (HoldForFocus(reminder)) return;
 
+        // In quiet hours nudges are skipped (they come round again anyway), and the user's own reminders are silent only if they chose that.
+        var quiet = QuietNow;
+        if (quiet && NudgeService.IsNudge(reminder.Message)) return;
+        var silent = quiet && _appSettings.QuietOwnReminders;
+
         var text = $"⏰ **Reminder:** {reminder.Message}";
         if (missed) text += $"\n\n(missed: it was due {reminder.Due:ddd d MMM, h:mm tt})";
 
-        System.Media.SystemSounds.Exclamation.Play();
+        if (!silent) System.Media.SystemSounds.Exclamation.Play();
         AddMessage("assistant", text);
+        if (silent) return;
 
         // The chosen character delivers it; with none chosen, or a full-screen app in front, fall back to the plain pop-up.
         var delivered = _pets.Deliver(reminder.Message, snooze: () => Snooze(reminder.Message), done: null);
@@ -709,8 +734,7 @@ public partial class MainWindow : Window
         _voice.SetWakePhrase(_appSettings.WakePhrase);
         _voice.SpeechLanguage = _appSettings.SpeechLanguage;
         _voice.MicrophoneDevice = _appSettings.MicrophoneDevice;
-        try { _speaker.SelectVoiceByHints(_appSettings.VoiceGender == "male" ? System.Speech.Synthesis.VoiceGender.Male : System.Speech.Synthesis.VoiceGender.Female); }
-        catch { /* keep the default voice */ }
+        ApplyVoice();
         IdentityChanged?.Invoke();
     }
 

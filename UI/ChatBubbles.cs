@@ -11,7 +11,16 @@ internal static class ChatBubbles
 {
     private static readonly Brush Text = Frozen("#F0F0F4");
     private static readonly Brush Muted = Frozen("#9A9DAD");
-    private static readonly Brush UserBubble = Frozen("#5B7BF5");
+    // The user's bubbles follow the accent colour, so a new theme shows up in the next message.
+    private static Brush UserBubble
+    {
+        get
+        {
+            var brush = new SolidColorBrush(ThemeCatalog.UserBubble(ThemeCatalog.CurrentAccent));
+            brush.Freeze();
+            return brush;
+        }
+    }
     private static readonly Brush AssistantBubble = Frozen("#26FFFFFF");
     private static readonly Brush ErrorText = Frozen("#FFA9A9");
     private static readonly Brush ErrorBubble = Frozen("#40FF5A5A");

@@ -1,0 +1,25 @@
+<Window x:Class="WinCompanion.TourWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Quick tour" Width="500" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen" Topmost="True" Background="#FF1E1F26"
+        FontFamily="{StaticResource UiFont}" UseLayoutRounding="True">
+    <StackPanel Margin="30,26,30,26">
+        <TextBlock x:Name="StepCount" Foreground="{StaticResource Muted}" FontSize="12" />
+        <TextBlock x:Name="StepTitle" Foreground="{StaticResource Fg}" FontSize="21" FontWeight="SemiBold" Margin="0,6,0,0" />
+        <TextBlock x:Name="StepIntro" Foreground="{StaticResource Muted}" FontSize="12.5" TextWrapping="Wrap" Margin="0,6,0,14" />
+        <StackPanel x:Name="Rows" />
+
+        <Grid Margin="0,24,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button Style="{StaticResource GhostButton}" Content="Skip tour" HorizontalAlignment="Left" Click="Skip_Click" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button x:Name="BackButton" Style="{StaticResource GhostButton}" Content="Back" Margin="0,0,8,0" Click="Back_Click" />
+                <Button x:Name="NextButton" Style="{StaticResource PrimaryButton}" Content="Next" IsDefault="True" Click="Next_Click" />
+            </StackPanel>
+        </Grid>
+    </StackPanel>
+</Window>

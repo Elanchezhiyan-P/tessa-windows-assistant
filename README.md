@@ -78,7 +78,22 @@ Turn on *Remember the last 100 things I copy* in Settings, Safety, then ask *"wh
 Your whole chat history is kept in a local database (older messages load on request), and she can search it (*"what did I ask about the invoice last week?"*). Say *"export this chat"* to save it as a Markdown file in Documents\WinCompanion\exports.
 
 ### Slash commands
-Type `/` in the chat box for a list. They run in the app, never reach the model, and work without an API key: `/clear`, `/new`, `/export`, `/copy`, `/search`, `/undo`, `/briefing`, `/focus`, `/routine`, `/reminders`, `/clipboard`, `/ocr`, `/note`, `/nudge`, `/model`, `/voice`, `/system`, `/update`, `/diagnostics`, `/features`, `/about` and `/help`. Ctrl+F opens `/search`.
+Type `/` in the chat box for a list. They run in the app, never reach the model, and work without an API key: `/clear`, `/new`, `/export`, `/copy`, `/search`, `/undo`, `/briefing`, `/focus`, `/routine`, `/reminders`, `/clipboard`, `/snip`, `/ocr`, `/note`, `/nudge`, `/quiet`, `/health`, `/memory`, `/forget`, `/theme`, `/model`, `/voice`, `/system`, `/update`, `/diagnostics`, `/tour`, `/features`, `/about` and `/help`. Ctrl+F opens `/search`.
+
+### Copy text from anywhere on the screen
+Press **Ctrl+Alt+T** (or type `/snip`), drag a box around any text (a picture, a video, an app that won't let you select) and it is copied to your clipboard. It is read with the text recognition built into Windows, on your PC and offline, in the languages installed in Windows. It is the same idea as the Snipping Tool's *Text actions*, but those use a separate engine that ships inside the Snipping Tool, which other programs can't use, so results can differ on hard text such as small or stylised print. `/ocr` does the same for the whole window or screen.
+
+### Ask about selected text
+Select text in any app, press **Ctrl+Alt+A**, and pick *Explain*, *Summarize*, *Fix grammar*, *Rewrite clearer*, *Shorten* or *Translate to English* (or type your own question). Rewriting results are copied to your clipboard, ready to paste back. The text is read through Windows accessibility where the app allows it, and otherwise with a quick Ctrl+C after which your clipboard is put back. With Gemini you are asked before the text is sent; the request runs without tools, so text that tries to give orders can't make her do anything.
+
+### Quiet hours and warnings
+*Settings, Look and alerts*: choose hours (for example 22:00 to 07:00) when she makes no sound, voice or pop-up. Nudges and warnings are skipped then; your own reminders still sound unless you tick the box to keep those quiet too, so an alarm is never missed. She can also warn you when a drive is nearly full (under 5% free, between 10 and 30 GB) or the battery reaches 20% and 10%, once per problem. `/quiet 22:00-07:00` and `/health` do the same from the chat.
+
+### Colours, voice and memory
+Seven colour themes and your own accent colour (`/theme forest`, `/theme #FF8800`). Pick any installed Windows voice and a speaking speed from -6 to +6 (`/voice list`, `/voice speed 2`). *Settings, You and her* lists everything she remembers about you, so you can delete a fact, add one, or forget it all (`/memory`, `/forget`).
+
+### First-run tour
+After the welcome screen, a three-step tour shows the shortcuts, the `/` commands and where Settings are. Replay it any time with `/tour` or *Settings, About, Show the tour*.
 
 ### Health nudges
 `/nudge water`, `/nudge posture`, `/nudge eyes` or `/nudge stand` start a repeating reminder (add minutes, for example `/nudge water 45`); `/nudge off` stops them. During a focus work period they wait until your break.
@@ -141,6 +156,9 @@ the default is "Hey Tessa" but you can rename her to anything), and whether you 
 | Ctrl+Alt+Space | Show or hide the window |
 | Ctrl+Alt+V | Talk (push-to-talk) |
 | Ctrl+Alt+N | Quick capture of a note or to-do |
+| Ctrl+Alt+A | Ask about the text you selected in any app |
+| Ctrl+Alt+T | Drag a box on the screen and copy its text |
+| Ctrl+F | Search your chat history (in her window) |
 | "Hey Tessa" | Talk, hands-free |
 
 ### Administrator commands (optional)
