@@ -184,6 +184,7 @@ public partial class MainWindow : Window
         ShowKeyState();
         SettingsNote.Text = note ?? "";
         UpdateProviderGroups();
+        ShowSystemPanel();
 
         _settingsOpen = true;
         RefreshLayout();
@@ -267,9 +268,10 @@ public partial class MainWindow : Window
 
     private void Tab_Changed(object sender, RoutedEventArgs e)
     {
-        if (PageAi is null || PageYou is null || PageSafety is null || PageAbout is null) return; // fires during InitializeComponent
-        var page = TabYou.IsChecked == true ? PageYou : TabSafety.IsChecked == true ? PageSafety : TabAbout.IsChecked == true ? PageAbout : PageAi;
-        foreach (var p in new[] { PageAi, PageYou, PageSafety, PageAbout }) p.Visibility = p == page ? Visibility.Visible : Visibility.Collapsed;
+        if (PageAi is null || PageYou is null || PageSafety is null || PagePc is null || PageAbout is null) return; // fires during InitializeComponent
+        var page = TabYou.IsChecked == true ? PageYou : TabSafety.IsChecked == true ? PageSafety : TabPc.IsChecked == true ? PagePc
+            : TabAbout.IsChecked == true ? PageAbout : PageAi;
+        foreach (var p in new[] { PageAi, PageYou, PageSafety, PagePc, PageAbout }) p.Visibility = p == page ? Visibility.Visible : Visibility.Collapsed;
         page.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)));
     }
 
@@ -360,6 +362,7 @@ public partial class MainWindow : Window
         _appSettings.BriefingAtStart = BriefingSwitch.IsChecked == true;
         _appSettings.BriefingCity = BriefingCityBox.Text.Trim();
         _appSettings.BriefingTopics = BriefingTopicsBox.Text.Trim();
+        _appSettings.CheckSystem = CheckSystemSwitch.IsChecked == true;
         if (_appSettings.VoiceMuted) _speaker.SpeakAsyncCancelAll();
         UpdateMuteButton();
         _appSettings.Save();
@@ -509,8 +512,17 @@ public partial class MainWindow : Window
 
     // ---- Input --------------------------------------------------------------------------------------
 
-    private void Input_TextChanged(object sender, TextChangedEventArgs e) =>
+    private void Input_TextChanged(object sender, TextChangedEventArgs e)
+    {
         Placeholder.Visibility = Input.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        UpdateSlashSuggestions();
+    }
+
+    // Tab would otherwise move focus away, and the suggestion list must see Enter and Escape before the window does.
+    private void Input_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (HandleSlashKey(e.Key)) e.Handled = true;
+    }
 
     private void Input_KeyDown(object sender, KeyEventArgs e)
     {
@@ -532,6 +544,17 @@ public partial class MainWindow : Window
     /// <param name="sendText">What is sent to the model, when it differs from what is displayed.</param>
     private async Task SubmitAsync(string display, bool spoken, string? sendText = null)
     {
+        // Slash commands (/clear, /new, ...) come first.
+        if (await TryHandleSlashAsync(sendText ?? display) is { } slashReply)
+        {
+            if (slashReply.Length > 0)
+            {
+                AddMessage("user", display);
+                AddMessage("assistant", slashReply);
+            }
+            return;
+        }
+
         // Routines, focus mode, the briefing and chat export are handled right here too.
         if (await TryHandleFeatureAsync(sendText ?? display) is { } featureReply)
         {

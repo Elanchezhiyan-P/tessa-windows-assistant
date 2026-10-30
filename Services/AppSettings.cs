@@ -56,6 +56,8 @@ public sealed class AppSettings
     public string BriefingTopics { get; set; } = "";
     /// <summary>The date the briefing was last shown automatically (yyyy-MM-dd).</summary>
     public string BriefingLastShown { get; set; } = "";
+    /// <summary>Read this PC's memory, processor, graphics card and disks to show them in Settings and suggest a local model. Never leaves the PC.</summary>
+    public bool CheckSystem { get; set; } = true;
     /// <summary>False until the first-run welcome has been completed or skipped.</summary>
     public bool SetupDone { get; set; }
 

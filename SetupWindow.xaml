@@ -29,6 +29,11 @@
             </StackPanel>
         </Border>
 
+        <CheckBox x:Name="CheckSystemBox" Style="{StaticResource Switch}" Margin="2,18,0,0" IsChecked="True"
+                  Content="Check this PC's memory and graphics, so I can suggest a model that runs well" />
+        <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,6,0,0"
+                   Text="It only reads hardware details such as memory and disk sizes. They stay on this PC." />
+
         <StackPanel Orientation="Horizontal" Margin="0,24,0,0">
             <Button Style="{StaticResource PrimaryButton}" Content="Start" IsDefault="True" Click="Start_Click" />
             <Button Style="{StaticResource GhostButton}" Content="Skip for now" Margin="8,0,0,0" Click="Skip_Click" />

@@ -1,0 +1,213 @@
+using System.Text.Json.Nodes;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using WinCompanion.Services;
+using WinCompanion.Tools;
+
+namespace WinCompanion;
+
+// "/clear", "/new", "/export", "/copy" and "/help", with a suggestion list while typing a slash command.
+public partial class MainWindow
+{
+    /// <summary>
+    /// Runs a slash command. Returns null when <paramref name="text"/> is not one; otherwise the reply to show
+    /// (empty when the command already changed the screen itself).
+    /// </summary>
+    private async Task<string?> TryHandleSlashAsync(string text)
+    {
+        if (SlashCommands.Parse(text) is not var (name, args)) return null;
+
+        switch (name)
+        {
+            case "system":
+                return SystemReport();
+            case "about":
+                return AboutText();
+            case "features":
+                return AboutTessa.Features(_appSettings.AssistantName);
+            case "briefing":
+                return await BriefingService.BuildAsync(_reminders, _appSettings);
+            case "focus":
+                return FocusCommand(args);
+            case "routine" when args.Length > 0:
+                return _routines.Get(args) is { } routine ? await RoutineTools.Run(_ctx, routine) : $"I have no routine called \"{args}\".";
+            case "routine" or "routines":
+                return RoutineList();
+            case "reminders":
+                return _reminders.Describe();
+            case "clipboard":
+                return ClipboardCommand(args);
+            case "ocr":
+                if (_ctx.Executor is null) return "Screen text isn't ready yet.";
+                var scope = args.Equals("screen", StringComparison.OrdinalIgnoreCase) ? "screen" : "active_window";
+                return await _ctx.Executor.RunAsync("read_screen_text", new JsonObject { ["scope"] = scope });
+            case "note":
+                if (args.Length == 0) return "Type what to save, for example /note buy milk or /note todo: call Sam.";
+                var (noteText, todo) = NotesTools.ParseCapture(args);
+                return noteText.Length == 0 ? "There is nothing to save." : $"{(todo ? "To-do" : "Note")} saved to {NotesTools.Append(noteText, todo)}.";
+            case "model":
+                return ModelCommand(args);
+            case "voice":
+                return VoiceCommand(args);
+            case "settings":
+                if (!_settingsOpen) Settings_Click(this, new RoutedEventArgs());
+                else CancelSettings_Click(this, new RoutedEventArgs());
+                return "";
+            case "clear":
+                NewChat_Click(this, new RoutedEventArgs());
+                return "";
+            case "new":
+                var saved = _chat.Entries.Count > 0 ? ChatExport.Export(null, _appSettings.AssistantName) : null;
+                NewChat_Click(this, new RoutedEventArgs());
+                if (saved is not null) AddMessage("assistant", $"Started a new chat. {saved}");
+                return "";
+            case "export":
+                return ChatExport.Export(args, _appSettings.AssistantName);
+            case "copy":
+                var last = _chat.Entries.LastOrDefault(e => e.Role == "assistant");
+                if (last is null) return "There is no reply to copy yet.";
+                try { Clipboard.SetText(last.Text); }
+                catch (System.Runtime.InteropServices.COMException) { return "The clipboard is busy; try again."; }
+                return "Copied the last reply.";
+            case "help":
+                return SlashCommands.HelpText();
+            default:
+                return SlashCommands.Unknown(name);
+        }
+    }
+
+    private string FocusCommand(string args)
+    {
+        if (args is "stop" or "off" or "end")
+            return _focus.Stop() ? "Focus mode is off." : "Focus mode wasn't on.";
+        if (args.Equals("pomodoro", StringComparison.OrdinalIgnoreCase)) return _focus.Start(25, 5, 4);
+        if (args.Length == 0) return _focus.Start(25, 5, 1);
+        return int.TryParse(args.Replace("min", "").Replace("m", "").Trim(), out var minutes) && minutes > 0
+            ? _focus.Start(minutes, 5, 1)
+            : "Use /focus, /focus 45, /focus pomodoro or /focus stop.";
+    }
+
+    private string RoutineList()
+    {
+        var all = _routines.List();
+        if (all.Count == 0) return "No routines saved yet. Ask me to make one, for example \"make a morning routine that opens Outlook\".";
+        return "Routines (run one with /routine <name>):\n" + string.Join('\n', all.Select(r =>
+            $"• {r.Name}{(r.Phrase is null ? "" : $" (say \"{r.Phrase}\")")}: {string.Join(", then ", r.Steps.Select(s => s.Tool))}"));
+    }
+
+    private string ClipboardCommand(string args)
+    {
+        if (args.Equals("clear", StringComparison.OrdinalIgnoreCase))
+            return $"Cleared {ClipboardStore.Clear()} item(s) from the clipboard history.";
+
+        var items = ClipboardStore.Find(args, null, 10);
+        if (items.Count == 0)
+            return _appSettings.ClipboardHistory ? "Nothing in the clipboard history matches." : "Clipboard history is off. Turn it on in /settings.";
+        return "Recently copied:\n" + string.Join('\n', items.Select(i =>
+        {
+            var line = i.Text.ReplaceLineEndings(" ");
+            return $"• {i.Time:d MMM HH:mm}: {(line.Length > 120 ? line[..120] + "…" : line)}";
+        }));
+    }
+
+    private string ModelCommand(string args)
+    {
+        if (args.Length == 0)
+            return _appSettings.UseLocal
+                ? $"Using the local model {_appSettings.LocalModel}. Switch with /model gemini."
+                : "Using Gemini. Switch with /model local.";
+
+        var local = args.Equals("local", StringComparison.OrdinalIgnoreCase);
+        if (!local && !args.Equals("gemini", StringComparison.OrdinalIgnoreCase)) return "Use /model gemini or /model local.";
+        if (local == _appSettings.UseLocal) return "Already using that model.";
+        if (!local && string.IsNullOrEmpty(_settings.LoadApiKey())) return "Add a Gemini API key in /settings first.";
+
+        _appSettings.Provider = local ? "local" : "gemini";
+        _appSettings.Save();
+        _llm = null; // rebuilt with the new provider on the next request
+        _ctx.Llm = null;
+        RefreshModelLabel();
+        return local ? $"Switched to the local model {_appSettings.LocalModel}." : "Switched to Gemini.";
+    }
+
+    private string VoiceCommand(string args)
+    {
+        bool? muted = args.ToLowerInvariant() switch
+        {
+            "on" => false,
+            "off" => true,
+            _ => null
+        };
+        if (muted is null)
+            return (_appSettings.VoiceMuted ? "Her voice is off." : "Her voice is on.") + " Use /voice on or /voice off.";
+
+        _appSettings.VoiceMuted = muted.Value;
+        _appSettings.Save();
+        if (muted.Value) _speaker.SpeakAsyncCancelAll();
+        UpdateMuteButton();
+        return muted.Value ? "Voice muted." : "Voice on.";
+    }
+
+    // ---- Suggestions ---------------------------------------------------------------------------------
+
+    private void UpdateSlashSuggestions()
+    {
+        var matches = SlashCommands.Suggest(Input.Text);
+        if (matches.Count == 0)
+        {
+            SlashPopup.IsOpen = false;
+            return;
+        }
+
+        SlashList.ItemsSource = matches.Select(c => $"{c.Usage}   {c.Description}").ToList();
+        SlashList.Tag = matches;
+        SlashList.SelectedIndex = 0;
+        SlashPopup.IsOpen = true;
+    }
+
+    private SlashCommand? SelectedSlashCommand =>
+        SlashPopup.IsOpen && SlashList.Tag is IReadOnlyList<SlashCommand> list && SlashList.SelectedIndex >= 0
+            ? list[SlashList.SelectedIndex]
+            : null;
+
+    /// <summary>Handles Up, Down, Tab, Enter and Escape while the suggestion list is open. Returns true when the key was used.</summary>
+    private bool HandleSlashKey(Key key)
+    {
+        if (!SlashPopup.IsOpen) return false;
+
+        switch (key)
+        {
+            case Key.Down or Key.Up:
+                var count = SlashList.Items.Count;
+                SlashList.SelectedIndex = (SlashList.SelectedIndex + (key == Key.Down ? 1 : count - 1)) % count;
+                return true;
+            case Key.Tab:
+                CompleteSlash(run: false);
+                return true;
+            case Key.Enter when SelectedSlashCommand is { } selected && SlashCommands.Parse(Input.Text)?.Name != selected.Name:
+                CompleteSlash(run: true);
+                return true;
+            case Key.Escape:
+                SlashPopup.IsOpen = false;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private void CompleteSlash(bool run)
+    {
+        if (SelectedSlashCommand is not { } command) return;
+        SlashPopup.IsOpen = false;
+        run &= !command.NeedsArgs;
+        Input.Text = "/" + command.Name + (command.NeedsArgs ? " " : "");
+        Input.CaretIndex = Input.Text.Length;
+        if (run) Send_Click(this, new RoutedEventArgs());
+    }
+
+    private void SlashList_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (SlashList.SelectedIndex >= 0) CompleteSlash(run: true);
+    }
+}

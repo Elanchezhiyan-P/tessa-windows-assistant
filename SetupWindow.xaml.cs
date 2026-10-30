@@ -40,7 +40,10 @@ public partial class SetupWindow : Window
     private void Finish(bool skip)
     {
         if (!skip)
+        {
             _settings.SetProfile(UserNameBox.Text, NickBox.Text, AssistantBox.Text, VoiceMale.IsChecked == true);
+            _settings.CheckSystem = CheckSystemBox.IsChecked == true;
+        }
         _settings.SetupDone = true;
         _settings.Save();
     }
