@@ -53,7 +53,10 @@ public static class AboutTessa
         • Clipboard: summarise, translate, fix or shorten what you copied; optional history you can search (/clipboard).
         • Notes and to-dos: /note or Ctrl+Alt+N, saved as Markdown.
         • Daily briefing (/briefing), focus mode and pomodoro (/focus), and routines you teach me (/routine).
-        • This PC: memory, processor, graphics and disks, with a local model that suits them (/system, or Settings, This PC).
+        • Health nudges: water, posture, eye rest and stretching (/nudge); held during focus sessions.
+        • Search your whole chat history (/search or Ctrl+F) and undo file moves and tidy-ups (/undo).
+        • Updates and support: /update checks GitHub, /diagnostics copies details for a bug report.
+        • This PC:memory, processor, graphics and disks, with a local model that suits them (/system, or Settings, This PC).
         • Files: find, read, move and rename, with nothing deleted permanently.
         • Web lookup for current facts, memory for things you tell me to remember, and chat export (/export).
         • Voice: push-to-talk with Ctrl+Alt+V, or say "Hey {assistantName}".

@@ -20,6 +20,18 @@ public partial class MainWindow
 
         switch (name)
         {
+            case "undo":
+                return UndoLog.Shared.Undo();
+            case "search":
+                return args.Length == 0
+                    ? "Type what to look for, for example /search invoice."
+                    : ChatSearch.Run(args, _appSettings.AssistantName);
+            case "nudge":
+                return NudgeCommand(args);
+            case "update":
+                return await UpdateCheck.CheckAsync();
+            case "diagnostics":
+                return CopyDiagnostics();
             case "system":
                 return SystemReport();
             case "about":
@@ -86,6 +98,32 @@ public partial class MainWindow
         return int.TryParse(args.Replace("min", "").Replace("m", "").Trim(), out var minutes) && minutes > 0
             ? _focus.Start(minutes, 5, 1)
             : "Use /focus, /focus 45, /focus pomodoro or /focus stop.";
+    }
+
+    private NudgeService? _nudges;
+
+    private string NudgeCommand(string args)
+    {
+        _nudges ??= new NudgeService(_reminders);
+        var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 0) return _nudges.Status();
+        if (parts[0].Equals("off", StringComparison.OrdinalIgnoreCase) || parts[0].Equals("stop", StringComparison.OrdinalIgnoreCase))
+            return _nudges.Stop(parts.Length > 1 ? parts[1] : null);
+
+        if (NudgeService.Find(parts[0]) is not { } kind) return $"I don't know a nudge called \"{parts[0]}\". Try {NudgeService.KeyList()}.";
+        if (parts.Length == 1) return _nudges.Start(kind);
+        return int.TryParse(parts[1].Replace("min", "").Replace("m", "").Trim(), out var minutes) && minutes > 0
+            ? _nudges.Start(kind, minutes)
+            : "Give the minutes as a number, for example /nudge water 45.";
+    }
+
+    /// <summary>Copies the bug-report details to the clipboard and says how much was copied.</summary>
+    private string CopyDiagnostics()
+    {
+        var text = Diagnostics.Build(Specs, _appSettings, Diagnostics.CrashTail());
+        try { Clipboard.SetText(text); }
+        catch (System.Runtime.InteropServices.COMException) { return "The clipboard is busy; try again."; }
+        return $"Copied {text.Split('\n').Length} lines of diagnostics to the clipboard. They have no chat, keys or notes, and your user and PC names are hidden. Read them before you paste them into a bug report.";
     }
 
     private string RoutineList()

@@ -96,6 +96,9 @@ public partial class MainWindow
     {
         if (FocusService.IsFocusReminder(reminder.Message)) return false;
         if (_focus.WorkEnds(DateTime.Now) is not { } end) return false;
+        // A repeating nudge that comes round several times during one work period should be said once, at the break.
+        if (NudgeService.IsNudge(reminder.Message) && _reminders.Pending().Any(r => r.Message == reminder.Message && r.Repeat is null))
+            return true;
         _reminders.Add(reminder.Message, end.AddSeconds(3));
         return true;
     }

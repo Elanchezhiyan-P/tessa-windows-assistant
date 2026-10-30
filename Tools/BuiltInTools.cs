@@ -164,15 +164,20 @@ internal static class BuiltInTools
             {
                 var folder = ResolveFolder(args["folder"]!.GetValue<string>());
                 var moved = 0;
+                var moves = new List<UndoMove>();
+                var createdFolders = new List<string>();
                 foreach (var file in Directory.GetFiles(folder))
                 {
                     var dest = Path.Combine(folder, CategoryFor(Path.GetExtension(file)));
+                    if (!Directory.Exists(dest)) createdFolders.Add(dest);
                     Directory.CreateDirectory(dest);
                     var target = Path.Combine(dest, Path.GetFileName(file));
                     if (File.Exists(target)) continue; // never overwrite
                     File.Move(file, target);
+                    moves.Add(new UndoMove(file, target));
                     moved++;
                 }
+                UndoLog.Shared.Record($"tidy {Path.GetFileName(folder.TrimEnd('\\'))}", moves, createdFolders);
                 return Task.FromResult($"Moved {moved} file(s) in {folder}.");
             });
 

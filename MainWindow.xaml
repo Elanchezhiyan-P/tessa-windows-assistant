@@ -5,7 +5,7 @@
         Title="Tessa" Width="640" SizeToContent="Height"
         WindowStyle="None" Background="Transparent" ResizeMode="NoResize"
         ShowInTaskbar="False" Topmost="True" WindowStartupLocation="Manual"
-        FontFamily="{StaticResource UiFont}" UseLayoutRounding="True">
+        FontFamily="{StaticResource UiFont}" UseLayoutRounding="True" PreviewKeyDown="Window_PreviewKeyDown">
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="-1"
                       CornerRadius="0" UseAeroCaptionButtons="False" />
@@ -273,6 +273,10 @@
                                                 Tag="https://github.com/Elanchezhiyan-P/tessa-windows-assistant" Click="AboutLink_Click" />
                                         <Button Style="{StaticResource GhostButton}" Content="Report a problem" Margin="0,0,8,8"
                                                 Tag="https://github.com/Elanchezhiyan-P/tessa-windows-assistant/issues" Click="AboutLink_Click" />
+                                        <Button x:Name="UpdateButton" Style="{StaticResource GhostButton}" Content="Check for updates" Margin="0,0,8,8"
+                                                Click="UpdateCheck_Click" />
+                                        <Button Style="{StaticResource GhostButton}" Content="Copy diagnostics" Margin="0,0,8,8"
+                                                Click="DiagnosticsCopy_Click" />
                                     </WrapPanel>
                                     <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,4,0,0"
                                                Text="MIT licence. Copyright (c) 2026 Elanchezhiyan P. Character credits are in Assets\Pets\CREDITS.md." />

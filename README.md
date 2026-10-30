@@ -77,6 +77,18 @@ Turn on *Remember the last 100 things I copy* in Settings, Safety, then ask *"wh
 ### Chat history and export
 Your whole chat history is kept in a local database (older messages load on request), and she can search it (*"what did I ask about the invoice last week?"*). Say *"export this chat"* to save it as a Markdown file in Documents\WinCompanion\exports.
 
+### Slash commands
+Type `/` in the chat box for a list. They run in the app, never reach the model, and work without an API key: `/clear`, `/new`, `/export`, `/copy`, `/search`, `/undo`, `/briefing`, `/focus`, `/routine`, `/reminders`, `/clipboard`, `/ocr`, `/note`, `/nudge`, `/model`, `/voice`, `/system`, `/update`, `/diagnostics`, `/features`, `/about` and `/help`. Ctrl+F opens `/search`.
+
+### Health nudges
+`/nudge water`, `/nudge posture`, `/nudge eyes` or `/nudge stand` start a repeating reminder (add minutes, for example `/nudge water 45`); `/nudge off` stops them. During a focus work period they wait until your break.
+
+### Undo and search
+`/undo` puts back the last file move, rename or folder tidy-up (it never overwrites anything). `/search invoice` or Ctrl+F searches your whole chat history.
+
+### This PC, updates and diagnostics
+*Settings, This PC* shows your Windows version, processor and cache, memory, graphics and disks, and suggests a local model that suits them. *Check for updates* (or `/update`) asks GitHub for the newest release when you press it. *Copy diagnostics* (or `/diagnostics`) copies a bug report with your user and PC names hidden.
+
 ### Notes and memory
 Say *"note: buy milk"* to add to a Markdown notes file. Tell her a lasting fact (*"my project folder is D:\Work"*) and she remembers it for
 next time.

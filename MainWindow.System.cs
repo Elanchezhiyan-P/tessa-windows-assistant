@@ -50,6 +50,27 @@ public partial class MainWindow
         catch (System.Runtime.InteropServices.COMException) { SettingsNote.Text = "The clipboard is busy; try again."; }
     }
 
+    private async void UpdateCheck_Click(object sender, RoutedEventArgs e)
+    {
+        UpdateButton.IsEnabled = false;
+        SettingsNote.Text = "Checking GitHub…";
+        try { SettingsNote.Text = await UpdateCheck.CheckAsync(); }
+        finally { UpdateButton.IsEnabled = true; }
+    }
+
+    private void DiagnosticsCopy_Click(object sender, RoutedEventArgs e) => SettingsNote.Text = CopyDiagnostics();
+
+    // Ctrl+F opens a search of the whole chat history: it fills the box with "/search " ready for the words.
+    private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != System.Windows.Input.Key.F || System.Windows.Input.Keyboard.Modifiers != System.Windows.Input.ModifierKeys.Control) return;
+        if (_settingsOpen) return;
+        Input.Text = "/search ";
+        Input.CaretIndex = Input.Text.Length;
+        Input.Focus();
+        e.Handled = true;
+    }
+
     private string SystemReport()
     {
         _specs = SystemInfo.Collect(); // a fresh reading: free memory changes
