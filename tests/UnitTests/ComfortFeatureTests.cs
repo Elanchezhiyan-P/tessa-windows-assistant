@@ -171,6 +171,8 @@ public class MemoryManagerTests : DatabaseTestBase
     }
 }
 
+// WPF starts up once per process, and two UI threads starting it together can deadlock: tests that build WPF objects run one at a time.
+[Collection("wpf")]
 public class ThemeTests
 {
     [Theory]

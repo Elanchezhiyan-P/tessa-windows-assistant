@@ -26,6 +26,8 @@ public static class TourSteps
             new("/focus 25", "A focus timer that keeps me quiet"),
             new("/search invoice", "Find anything in your chat history (or press Ctrl+F)"),
             new("/undo", "Put back the last file move"),
+            new("/agent …", "Give me a goal; I plan it, you approve, I do it step by step"),
+            new("/slow", "Find out why your PC feels slow, with fixes"),
             new("/help", "Every command")
         ]),
         new("Make me yours", "Open Settings with the gear in the window's corner, or type /settings.",

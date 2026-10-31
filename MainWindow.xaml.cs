@@ -43,6 +43,7 @@ public partial class MainWindow : Window
         _tools = ToolRegistry.CreateDefault(_ctx, _memory, _appSettings, _reminders, CreateFeatures());
         StartFeatures();
         StartHealthMonitor();
+        ScheduleIndexRefresh();
         _pets = new PetController(_appSettings);
         Closing += OnClosing;
 
@@ -187,6 +188,7 @@ public partial class MainWindow : Window
         UpdateProviderGroups();
         ShowSystemPanel();
         LoadPersonalization();
+        LoadCare();
 
         _settingsOpen = true;
         RefreshLayout();
@@ -450,6 +452,7 @@ public partial class MainWindow : Window
     private void NewChat_Click(object sender, RoutedEventArgs e)
     {
         _speaker.SpeakAsyncCancelAll();
+        StopAgent();
         _llm?.ClearHistory();
         ClearSelection();
         LlmClientBase.DeleteSavedContexts();

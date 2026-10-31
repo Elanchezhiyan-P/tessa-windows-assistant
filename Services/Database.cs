@@ -89,6 +89,36 @@ internal static class Database
                 created TEXT NOT NULL,
                 repeat  TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS index_folders (
+                path  TEXT PRIMARY KEY COLLATE NOCASE,
+                added TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS index_files (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                path     TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                folder   TEXT NOT NULL COLLATE NOCASE,
+                size     INTEGER NOT NULL,
+                modified TEXT NOT NULL,
+                indexed  TEXT NOT NULL,
+                chunks   INTEGER NOT NULL,
+                note     TEXT
+            );
+            CREATE INDEX IF NOT EXISTS index_files_folder ON index_files(folder);
+            CREATE TABLE IF NOT EXISTS index_chunks (
+                id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_id INTEGER NOT NULL,
+                ordinal INTEGER NOT NULL,
+                text    TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS index_chunks_file ON index_chunks(file_id);
+            CREATE VIRTUAL TABLE IF NOT EXISTS index_fts USING fts5(text, content='index_chunks', content_rowid='id');
+            CREATE TRIGGER IF NOT EXISTS index_chunks_ai AFTER INSERT ON index_chunks BEGIN
+                INSERT INTO index_fts(rowid, text) VALUES (new.id, new.text);
+            END;
+            CREATE TRIGGER IF NOT EXISTS index_chunks_ad AFTER DELETE ON index_chunks BEGIN
+                INSERT INTO index_fts(index_fts, rowid, text) VALUES ('delete', old.id, old.text);
+            END;
             """);
     }
 

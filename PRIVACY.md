@@ -11,7 +11,7 @@ Everything is in `%AppData%\WinCompanion` (tray menu, *Data folder*):
 |---|---|
 | `apikey.bin` | Your Gemini key, encrypted with Windows DPAPI (readable only by your Windows account on this PC) |
 | `settings.json` | Preferences: model choice, local server address, privacy switches, character |
-| `wincompanion.db` | A local SQLite database with your chat history, the facts you asked it to remember, and pending reminders |
+| `wincompanion.db` | A local SQLite database with your chat history, the facts you asked it to remember, pending reminders, and (only if you add folders with `/index add`) a search index holding the text of the documents in those folders |
 | `context.*.json` | The model's recent conversation context |
 | `actions.log` | Each action it ran, when, whether you approved it, and a short result |
 | `crash.log` | Error details if something failed (no chat content) |
@@ -43,6 +43,9 @@ With **Local**, requests go only to the server address you set (normally `localh
 - **Screen text** ("copy the text on my screen", `/ocr`, and the drag-a-box *Snip text* on Ctrl+Alt+T) is read by Windows' built-in text recognition on this PC; nothing is sent anywhere. A snip is not kept as a picture, and the chat records only the first few words of what was copied.
 - **Update check** (only when you press *Check for updates* or type `/update`) asks <https://api.github.com> for the latest release of this project. GitHub sees your IP address like any website you visit; nothing about you or your PC is sent, and nothing is downloaded or installed. It never runs on its own.
 - **This PC and diagnostics** read your memory, processor, graphics and disk sizes from Windows to show them in Settings and suggest a local model. They stay on this PC. *Copy diagnostics* puts a report on your clipboard (version, hardware, a few settings and recent errors, with your Windows user name and PC name hidden); it is never sent anywhere unless you paste it yourself.
+- **Document search** reads only the folders you add (never system or app-data folders), on this PC. The index is stored unencrypted in `wincompanion.db` like your chat, so it contains the text of those documents: remove a folder, run `/index clear`, or delete the file to forget it. With Gemini, document text goes to Google only for the matches or the document you ask about, and only after you approve (unless you turned that question off). With a local model nothing leaves the PC.
+- **Agent mode** (`/agent`) sends only your goal to the model to write the plan. Each step is then an ordinary request, with the same approvals, privacy questions and log as if you had typed it.
+- **Start-up programs, junk files and the slow-PC check** read start-up entries, folder sizes and process load on this PC and send nothing anywhere. Switching a start-up program off only sets the on/off flag Task Manager uses. *Clean up junk files* permanently deletes old files in the temp folder, internet cache, crash dumps and error reports, after you approve the size.
 - **Ask about selected text** (Ctrl+Alt+A) reads the text you have selected only when you press the key. It goes to the model only after you choose an action or type a question, and with Gemini you are asked first (unless you turned that off). It is not saved anywhere except in the chat if you ask about it.
 - **Low-disk and battery warnings** read drive free space and the battery level on this PC every few minutes. Nothing is sent anywhere. Turn them off in *Settings, Look and alerts*.
 - **What she remembers** is shown and editable in *Settings, You and her*. These facts are part of every request, so with Gemini they go to Google; delete any you don't want shared.

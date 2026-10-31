@@ -51,6 +51,20 @@ public partial class MainWindow
                 return _reminders.Describe();
             case "clipboard":
                 return ClipboardCommand(args);
+            case "agent":
+                if (args.Length == 0) return "Tell me the goal, for example /agent organise my Downloads and tell me what's biggest.";
+                await RunAgentAsync(args);
+                return "";
+            case "startup":
+                return await StartupCommandAsync(args);
+            case "cleanup":
+                return await CleanupCommandAsync(args);
+            case "slow":
+                return await PcCareTools.DiagnoseAsync();
+            case "find":
+                return FindCommand(args);
+            case "index":
+                return IndexCommand(args);
             case "snip":
                 SnipText();
                 return "";

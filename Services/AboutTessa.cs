@@ -60,8 +60,11 @@ public static class AboutTessa
         • Health nudges: water, posture, eye rest and stretching (/nudge); held during focus sessions.
         • Search your whole chat history (/search or Ctrl+F) and undo file moves and tidy-ups (/undo).
         • Updates and support: /update checks GitHub, /diagnostics copies details for a bug report.
-        • This PC:memory, processor, graphics and disks, with a local model that suits them (/system, or Settings, This PC).
-        • Files: find, read, move and rename, with nothing deleted permanently.
+        • Look after your PC: /slow finds why it feels slow, /startup switches off programs that start with Windows, and /cleanup removes junk files (asking first).
+        • Your documents: /index add <folder>, then /find or ask me ("find the invoice from March", "what does this contract say about notice?"). PDF, Word, Excel, PowerPoint and text files.
+        • Bigger jobs: /agent <goal> and I write a plan, you approve it once, and I do it step by step. Every step still asks before anything risky, and you can Stop.
+        • This PC: memory, processor, graphics and disks, with a local model that suits them (/system, or Settings, PC & files).
+        • Files: find, read, move and rename. Deleted files go to the Recycle Bin; only the junk cleanup deletes for good, after you approve.
         • Web lookup for current facts, memory for things you tell me to remember, and chat export (/export).
         • Voice: push-to-talk with Ctrl+Alt+V, or say "Hey {assistantName}".
         Type /help to see every command.

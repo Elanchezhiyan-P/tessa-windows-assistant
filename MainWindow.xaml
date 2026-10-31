@@ -67,7 +67,7 @@
                                          Checked="Tab_Changed" />
                             <RadioButton x:Name="TabSafety" Style="{StaticResource Segment}" Content="Safety" GroupName="tab"
                                          Checked="Tab_Changed" />
-                            <RadioButton x:Name="TabPc" Style="{StaticResource Segment}" Content="This PC" GroupName="tab"
+                            <RadioButton x:Name="TabPc" Style="{StaticResource Segment}" Content="PC &amp; files" GroupName="tab"
                                          Checked="Tab_Changed" />
                             <RadioButton x:Name="TabAbout" Style="{StaticResource Segment}" Content="About" GroupName="tab"
                                          Checked="Tab_Changed" />
@@ -325,6 +325,58 @@
                                               Content="Check this PC automatically when I open Settings" />
                                     <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,6,0,0"
                                                Text="Only memory, processor, graphics and disk sizes are read. No serial numbers or personal details, and nothing is sent anywhere." />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Why is it slow? -->
+                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Is your PC slow?" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"
+                                               Text="A quick check of the processor, memory, drives, start-up programs and junk files, with a likely cause and a fix for each. It changes nothing." />
+                                    <Button x:Name="SlowButton" Style="{StaticResource GhostButton}" Content="Check now" HorizontalAlignment="Left"
+                                            Margin="0,10,0,0" Click="SlowCheck_Click" />
+                                    <TextBlock x:Name="SlowText" Foreground="{StaticResource Fg}" FontSize="12.5" TextWrapping="Wrap" LineHeight="19" Margin="0,10,0,0" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Start-up programs -->
+                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Programs that start with Windows" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"
+                                               Text="Switch off the ones you don't need so Windows starts faster. Nothing is uninstalled, and you can switch them back on. The change applies from the next sign-in." />
+                                    <StackPanel x:Name="StartupList" Margin="0,10,0,0" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Junk files -->
+                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Clean up junk files" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"
+                                               Text="Temporary files, internet cache, crash dumps and error reports that are over a day old. Only those folders are touched. This permanently deletes the files, so check the size first." />
+                                    <WrapPanel Margin="0,10,0,0">
+                                        <Button Style="{StaticResource GhostButton}" Content="Check how much" Margin="0,0,8,0" Click="CleanupScan_Click" />
+                                        <Button x:Name="CleanupRunButton" Style="{StaticResource GhostButton}" Content="Clean up" IsEnabled="False" Click="CleanupRun_Click" />
+                                    </WrapPanel>
+                                    <TextBlock x:Name="CleanupText" Foreground="{StaticResource Fg}" FontSize="12.5" TextWrapping="Wrap" LineHeight="19" Margin="0,10,0,0" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Search my files -->
+                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Search my files" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"
+                                               Text="Choose folders and I'll index the text of the PDF, Word, Excel, PowerPoint and text files in them, so you can ask “find the invoice from March” or ask about a document. Only folders you add are read. The index stays on this PC; a cloud model sees document text only after you approve." />
+                                    <StackPanel x:Name="IndexList" Margin="0,10,0,0" />
+                                    <WrapPanel Margin="0,8,0,0">
+                                        <Button Style="{StaticResource GhostButton}" Content="Add folder…" Margin="0,0,8,0" Click="IndexAdd_Click" />
+                                        <Button Style="{StaticResource GhostButton}" Content="Update now" Margin="0,0,8,0" Click="IndexUpdate_Click" />
+                                        <Button x:Name="IndexClearButton" Style="{StaticResource GhostButton}" Content="Forget all" Click="IndexClear_Click" />
+                                    </WrapPanel>
+                                    <TextBlock x:Name="IndexStatus" Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,8,0,0" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>

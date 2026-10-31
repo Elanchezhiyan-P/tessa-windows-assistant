@@ -23,8 +23,8 @@ public class SlashCommandTests
     public void SuggestsByPrefixOnly()
     {
         Assert.Contains(SlashCommands.Suggest("/"), c => c.Name == "clear");
-        Assert.Equal(["clear"], SlashCommands.Suggest("/cle").Select(c => c.Name));
-        Assert.Equal(["clear", "clipboard"], SlashCommands.Suggest("/cl").Select(c => c.Name));
+        Assert.Equal(["clear"], SlashCommands.Suggest("/clear").Select(c => c.Name));
+        Assert.Equal(["cleanup", "clear", "clipboard"], SlashCommands.Suggest("/cl").Select(c => c.Name).Order());
         Assert.Empty(SlashCommands.Suggest("/clear now"));
         Assert.Empty(SlashCommands.Suggest("hello"));
     }

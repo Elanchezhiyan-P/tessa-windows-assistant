@@ -11,13 +11,17 @@ internal sealed class DelegateTool : ITool
 {
     private readonly Func<JsonObject, Task<string>> _run;
     private readonly Func<JsonObject, bool> _confirmWhen;
+    private readonly Func<JsonObject, string?>? _describe;
 
     public DelegateTool(string name, string description, JsonObject? properties, string[] required,
-        bool needsConfirmation, Func<JsonObject, Task<string>> run, Func<JsonObject, bool>? confirmWhen = null)
+        bool needsConfirmation, Func<JsonObject, Task<string>> run, Func<JsonObject, bool>? confirmWhen = null,
+        Func<JsonObject, string?>? describe = null)
     {
         Name = name; Description = description; Properties = properties; Required = required;
-        _confirmWhen = confirmWhen ?? (_ => needsConfirmation); _run = run;
+        _confirmWhen = confirmWhen ?? (_ => needsConfirmation); _run = run; _describe = describe;
     }
+
+    public string? ConfirmationDetail(JsonObject args) => _describe?.Invoke(args);
 
     public string Name { get; }
     public string Description { get; }
@@ -40,6 +44,8 @@ internal static class BuiltInTools
     public static IEnumerable<ITool> All(ToolContext ctx, MemoryStore memory, AppSettings settings, ReminderStore reminders, AppFeatures features) => Core()
         .Concat(WindowTools.All())
         .Concat(SystemTools.All())
+        .Concat(PcCareTools.All())
+        .Concat(DocumentTools.All(ctx))
         .Concat(ScreenTools.All(ctx))
         .Concat(NotesTools.All())
         .Concat(TextTools.All(ctx))

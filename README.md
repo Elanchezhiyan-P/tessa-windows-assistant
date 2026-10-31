@@ -55,7 +55,18 @@ with Windows' own text recognition, so it never leaves your PC), **Explain this 
 Summarise, translate, fix the grammar of, shorten, or make more polite whatever you just copied.
 
 ### Files and folders
-Find, read, move and rename files, create folders, tidy up Downloads, and send things to the Recycle Bin. Nothing is ever deleted permanently.
+Find, read, move and rename files, create folders, tidy up Downloads, and send things to the Recycle Bin. Files you ask her to delete always go to the Recycle Bin. The one exception is *Clean up junk files* (below), which permanently deletes old temporary files, and only after you approve the size.
+
+### Agent mode
+`/agent organise my Downloads and tell me what's biggest`: she writes a short plan (2 to 6 steps), shows it in the chat, and does nothing until you press **Run plan**. Then she works through the steps in order, with progress for each and a **Stop** button (it stops after the step she is on). Every step is an ordinary request to her, so anything risky still shows its approval card and everything is logged. If a step fails the plan stops and the rest are skipped; "New chat" also stops it. Only your goal is sent to the model to make the plan (no files or screen). A small local model makes weaker plans than Gemini, so check the plan before you run it.
+
+### Look after your PC
+- `/slow` (or *Settings, PC & files, Is your PC slow?*): checks the processor, memory, drives, start-up programs, uptime and junk files and lists the likely causes, worst first, each with a fix. It changes nothing.
+- `/startup`: lists the programs that start with Windows. `/startup off Spotify` stops one (after you approve); `/startup on Spotify` brings it back. It uses the same on/off switch as Task Manager, so nothing is uninstalled or deleted and no administrator rights are needed. The change applies from your next sign-in.
+- `/cleanup scan` shows how much junk there is; `/cleanup` deletes it after you approve the size. It only touches your temp folder, the internet cache, crash dumps and error reports, only files older than a day, never follows links out of those folders, and leaves anything in use alone. Deleted files can't be recovered.
+
+### Search your documents
+`/index add Documents` picks a folder; she reads the text of the PDF, Word, Excel, PowerPoint, text and code files in it in the background (at low priority; new and changed files are picked up each time she starts, or with `/index now`). Then `/find invoice after:2026-03` searches by words in the name or text, and you can just ask: *"find the invoice from March"* or *"what does the contract say about the notice period?"*. It matches words, not meaning, so search for words the document actually uses. A scanned PDF is only a picture and has no text to search. Only folders you add are read; system and app-data folders are refused. `/index remove <folder>` and `/index clear` forget what was read.
 
 ### Quick capture, notes and to-dos
 Press **Ctrl+Alt+N**, type, and press Enter: the note is saved to a Markdown file without opening the chat. Start with `todo:` to save it as a task.
@@ -78,7 +89,7 @@ Turn on *Remember the last 100 things I copy* in Settings, Safety, then ask *"wh
 Your whole chat history is kept in a local database (older messages load on request), and she can search it (*"what did I ask about the invoice last week?"*). Say *"export this chat"* to save it as a Markdown file in Documents\WinCompanion\exports.
 
 ### Slash commands
-Type `/` in the chat box for a list. They run in the app, never reach the model, and work without an API key: `/clear`, `/new`, `/export`, `/copy`, `/search`, `/undo`, `/briefing`, `/focus`, `/routine`, `/reminders`, `/clipboard`, `/snip`, `/ocr`, `/note`, `/nudge`, `/quiet`, `/health`, `/memory`, `/forget`, `/theme`, `/model`, `/voice`, `/system`, `/update`, `/diagnostics`, `/tour`, `/features`, `/about` and `/help`. Ctrl+F opens `/search`.
+Type `/` in the chat box for a list. They run in the app, never reach the model, and work without an API key: `/clear`, `/new`, `/export`, `/copy`, `/search`, `/undo`, `/briefing`, `/focus`, `/routine`, `/reminders`, `/agent`, `/slow`, `/startup`, `/cleanup`, `/index`, `/find`, `/clipboard`, `/snip`, `/ocr`, `/note`, `/nudge`, `/quiet`, `/health`, `/memory`, `/forget`, `/theme`, `/model`, `/voice`, `/system`, `/update`, `/diagnostics`, `/tour`, `/features`, `/about` and `/help`. Ctrl+F opens `/search`.
 
 ### Copy text from anywhere on the screen
 Press **Ctrl+Alt+T** (or type `/snip`), drag a box around any text (a picture, a video, an app that won't let you select) and it is copied to your clipboard. It is read with the text recognition built into Windows, on your PC and offline, in the languages installed in Windows. It is the same idea as the Snipping Tool's *Text actions*, but those use a separate engine that ships inside the Snipping Tool, which other programs can't use, so results can differ on hard text such as small or stylised print. `/ocr` does the same for the whole window or screen.
@@ -102,7 +113,7 @@ After the welcome screen, a three-step tour shows the shortcuts, the `/` command
 `/undo` puts back the last file move, rename or folder tidy-up (it never overwrites anything). `/search invoice` or Ctrl+F searches your whole chat history.
 
 ### This PC, updates and diagnostics
-*Settings, This PC* shows your Windows version, processor and cache, memory, graphics and disks, and suggests a local model that suits them. *Check for updates* (or `/update`) asks GitHub for the newest release when you press it. *Copy diagnostics* (or `/diagnostics`) copies a bug report with your user and PC names hidden.
+*Settings, PC & files* shows your Windows version, processor and cache, memory, graphics and disks, and suggests a local model that suits them. *Check for updates* (or `/update`) asks GitHub for the newest release when you press it. *Copy diagnostics* (or `/diagnostics`) copies a bug report with your user and PC names hidden.
 
 ### Notes and memory
 Say *"note: buy milk"* to add to a Markdown notes file. Tell her a lasting fact (*"my project folder is D:\Work"*) and she remembers it for

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
+using WinCompanion.Services;
 using static WinCompanion.Tools.NativeMethods;
 
 namespace WinCompanion.Tools;
@@ -84,6 +85,35 @@ internal static class SystemTools
         report.AppendLine("Top CPU: " + string.Join(", ", cpuByName.Select(x => $"{x.Name} {x.Pct:0.#}%")));
         report.Append("Top RAM: " + string.Join(", ", ramByName.Select(x => $"{x.Name} {Gb(x.Bytes)}")));
         return report.ToString();
+    }
+
+    /// <summary>Measures the PC for about a second: processor load, memory use, and the programs using the most of each.</summary>
+    internal static async Task<(double Cpu, int RamPercent, List<ProcessLoad> TopCpu, List<ProcessMemory> TopRam)> SampleAsync()
+    {
+        GetSystemTimes(out var idle1, out var kernel1, out var user1);
+        var before = SnapshotCpu();
+        var clock = Stopwatch.StartNew();
+        await Task.Delay(SampleWindow);
+        GetSystemTimes(out var idle2, out var kernel2, out var user2);
+        var elapsed = clock.Elapsed;
+
+        var total = (kernel2 - kernel1) + (user2 - user1);
+        var cpu = total > 0 ? 100.0 * (1.0 - (double)(idle2 - idle1) / total) : 0;
+
+        var mem = new MemoryStatus { Length = (uint)System.Runtime.InteropServices.Marshal.SizeOf<MemoryStatus>() };
+        var ram = GlobalMemoryStatusEx(ref mem) ? (int)mem.MemoryLoad : 0;
+
+        var after = SnapshotProcesses();
+        var topCpu = after
+            .Where(p => before.ContainsKey(p.Key))
+            .GroupBy(p => p.Value.Name)
+            .Select(g => new ProcessLoad(g.Key,
+                g.Sum(p => (p.Value.Cpu - before[p.Key].Cpu).TotalMilliseconds) / (elapsed.TotalMilliseconds * Environment.ProcessorCount) * 100))
+            .OrderByDescending(x => x.CpuPercent).Take(5).ToList();
+        var topRam = after.GroupBy(p => p.Value.Name)
+            .Select(g => new ProcessMemory(g.Key, g.Sum(p => p.Value.Memory)))
+            .OrderByDescending(x => x.Bytes).Take(5).ToList();
+        return (cpu, ram, topCpu, topRam);
     }
 
     private static Dictionary<int, (string Name, TimeSpan Cpu)> SnapshotCpu() =>
