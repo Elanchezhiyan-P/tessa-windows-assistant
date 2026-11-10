@@ -35,7 +35,7 @@ public static class AboutTessa
     public static bool IsFeaturesQuestion(string text) => text.Length <= MaxQuestionLength && FeaturesQuestion.IsMatch(text);
 
     public static string Version =>
-        Assembly.GetExecutingAssembly().GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "2.1.0";
+        Assembly.GetExecutingAssembly().GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "2.2.0";
 
     /// <param name="brain">How the current model is described, for example "Google Gemini" or "a local model (qwen2.5:3b)".</param>
     public static string About(string assistantName, string brain) =>
@@ -55,7 +55,11 @@ public static class AboutTessa
         • Daily briefing (/briefing), focus mode and pomodoro (/focus), and routines you teach me (/routine).
         • Copy text from the screen: press Ctrl+Alt+T (or /snip) and drag a box. It is read on your PC and copied, like the Snipping Tool's text actions.
         • Selected text: select text in any app and press Ctrl+Alt+A to explain, fix, shorten or translate it.
-        • Comfort: quiet hours (/quiet), warnings for low disk or battery (/health), colour themes (/theme), and a voice and speed you choose (/voice).
+        • Comfort: quiet hours (/quiet), warnings for low disk or battery (/health), colour themes with a dark or light look (/theme), a window size you choose (/size), and a voice and speed (/voice).
+        • Chats: keep several named chats and come back to them (/chats, /new, /rename), and pin messages you want to find again (/pin, /pins).
+        • AI choices: Gemini, Claude, any OpenAI-compatible service, or a local model (/model).
+        • Floating timer: a small countdown for focus sessions and reminders that are close (/timer).
+        • Backup: settings, memory, routines, plans, reminders and notes in one file for a new PC (/backup, /restore).
         • Memory: see and delete what I remember about you (/memory, or Settings, You and her).
         • Health nudges: water, posture, eye rest and stretching (/nudge); held during focus sessions.
         • Search your whole chat history (/search or Ctrl+F) and undo file moves and tidy-ups (/undo).
@@ -63,7 +67,7 @@ public static class AboutTessa
         • Replies appear as they are written, and the Stop button ends one; /startup, /find and /cleanup scan show switches and buttons instead of plain text.
         • Look after your PC: /slow finds why it feels slow, /startup switches off programs that start with Windows, and /cleanup removes junk files (asking first).
         • Your documents: /index add <folder>, then /find or ask me ("find the invoice from March", "what does this contract say about notice?"). PDF, Word, Excel, PowerPoint and text files.
-        • Bigger jobs: /agent <goal> and I write a plan, you approve it once, and I do it step by step. Every step still asks before anything risky, and you can Stop.
+        • Bigger jobs: /agent <goal> and I write a plan; reword, move or remove its steps, then run it, save it (/plan save) or schedule it (/plan schedule). It always waits for your Run plan, every step still asks before anything risky, and you can Stop.
         • This PC: memory, processor, graphics and disks, with a local model that suits them (/system, or Settings, PC & files).
         • Files: find, read, move and rename. Deleted files go to the Recycle Bin; only the junk cleanup deletes for good, after you approve.
         • Web lookup for current facts, memory for things you tell me to remember, and chat export (/export).

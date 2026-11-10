@@ -24,7 +24,7 @@ public sealed class ToolContext
     public async Task<bool> AllowCloudAsync(string what)
     {
         if (Llm is not { IsCloud: true } || !Settings.AskBeforeSendingToCloud) return true;
-        return await Confirm($"Send {what} to Google's Gemini?\nIt leaves this PC. You can turn this question off in Settings > Privacy.");
+        return await Confirm($"Send {what} to {AppSettings.Current.CloudLabel}?\nIt leaves this PC. You can turn this question off in Settings > Privacy.");
     }
 }
 

@@ -17,7 +17,7 @@ public static class Diagnostics
         sb.AppendLine($"{settings.AssistantName} {AboutTessa.Version}, .NET {Environment.Version}");
         sb.AppendLine(SystemInfo.Describe(specs));
         sb.AppendLine();
-        sb.AppendLine($"Model: {(settings.UseLocal ? $"local ({settings.LocalModel})" : "Gemini")}");
+        sb.AppendLine($"Model: {(settings.Provider switch { "local" => $"local ({settings.LocalModel})", "claude" => $"Claude ({settings.ClaudeModel})", "openai" => $"OpenAI-compatible ({settings.CloudLabel}, {settings.OpenAiModel})", _ => "Gemini" })}");
         sb.AppendLine($"PowerShell: {(settings.PowerShellTrusted ? "run freely" : "ask unless read-only")}{(settings.PowerShellAdmin ? ", administrator allowed" : "")}");
         sb.AppendLine($"Voice: {(settings.VoiceMuted ? "muted" : "on")}, speech via Gemini {(settings.SpeechViaGemini ? "on" : "off")}, language \"{settings.SpeechLanguage}\"");
         sb.AppendLine($"Character: {settings.Pet}, clipboard history {(settings.ClipboardHistory ? "on" : "off")}, briefing at start {(settings.BriefingAtStart ? "on" : "off")}");

@@ -45,6 +45,11 @@ public sealed record Reminder(Guid Id, string Message, DateTime Due, DateTime Cr
 public sealed class ReminderStore
 {
     private readonly object _gate = new();
+    private static int _version;
+
+    /// <summary>Goes up whenever any reminder is added, removed or moved, so a display can tell when to look again.</summary>
+    public static int Version => Volatile.Read(ref _version);
+    private static void Changed() => Interlocked.Increment(ref _version);
 
     public Reminder Add(string message, DateTime due, string? repeat = null)
     {
@@ -61,6 +66,7 @@ public sealed class ReminderStore
             command.Parameters.AddWithValue("$repeat", (object?)reminder.Repeat ?? DBNull.Value);
             command.ExecuteNonQuery();
         }
+        Changed();
         return reminder;
     }
 
@@ -99,6 +105,7 @@ public sealed class ReminderStore
                 command.ExecuteNonQuery();
             }
             transaction.Commit();
+            if (due.Count > 0) Changed();
             return due;
         }
     }
@@ -116,6 +123,7 @@ public sealed class ReminderStore
             command.CommandText = "DELETE FROM reminders WHERE id = $id";
             command.Parameters.AddWithValue("$id", target.Id.ToString());
             command.ExecuteNonQuery();
+            Changed();
             return target;
         }
     }
@@ -134,6 +142,7 @@ public sealed class ReminderStore
                 command.Parameters.AddWithValue("$id", reminder.Id.ToString());
                 removed += command.ExecuteNonQuery();
             }
+            if (removed > 0) Changed();
             return removed;
         }
     }
@@ -145,7 +154,9 @@ public sealed class ReminderStore
             using var db = Database.Open();
             using var command = db.CreateCommand();
             command.CommandText = "DELETE FROM reminders";
-            return command.ExecuteNonQuery();
+            var removed = command.ExecuteNonQuery();
+            Changed();
+            return removed;
         }
     }
 

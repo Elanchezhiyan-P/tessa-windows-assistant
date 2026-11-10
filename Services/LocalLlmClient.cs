@@ -7,9 +7,13 @@ using WinCompanion.Tools;
 
 namespace WinCompanion.Services;
 
+/// <summary>Where an OpenAI-compatible client sends its requests.</summary>
+/// <param name="Cloud">True for a hosted service (the key is sent, requests leave this PC); false for a server on this PC.</param>
+public sealed record OpenAiEndpoint(string BaseUrl, string Model, string VisionModel, string? ApiKey, bool Cloud, string ContextFile, string Label);
+
 /// <summary>
-/// A local model (e.g. Qwen) behind any OpenAI-compatible server: Ollama, LM Studio, llama.cpp, vLLM.
-/// Uses /chat/completions with tool calling; nothing leaves the machine.
+/// A model behind any OpenAI-compatible /chat/completions server with tool calling: a local one (Ollama, LM Studio,
+/// llama.cpp, vLLM; nothing leaves the machine) or a hosted one (OpenAI, OpenRouter, Groq and others; needs an API key).
 /// </summary>
 public sealed class LocalLlmClient : LlmClientBase
 {
@@ -18,24 +22,40 @@ public sealed class LocalLlmClient : LlmClientBase
     // Local models can take a while to load on the first request.
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromMinutes(3) };
     private readonly JsonArray _history = new();
-    private readonly string _baseUrl, _model, _visionModel;
-
-    private static string ContextPath => AppPaths.FileIn("context.local.json");
+    private readonly string _baseUrl, _model, _visionModel, _apiKey, _label;
+    private readonly bool _cloud;
+    private readonly string _contextPath;
 
     public LocalLlmClient(AppSettings settings, ToolRegistry tools, Func<string, Task<bool>> confirm, ActionLog log,
         MemoryStore memory, Func<ActiveAppInfo?> activeApp)
+        : this(ForLocal(settings), tools, confirm, log, memory, activeApp) { }
+
+    public LocalLlmClient(OpenAiEndpoint endpoint, ToolRegistry tools, Func<string, Task<bool>> confirm, ActionLog log,
+        MemoryStore memory, Func<ActiveAppInfo?> activeApp)
         : base(tools, confirm, log, memory, activeApp)
     {
-        _baseUrl = settings.LocalBaseUrl.TrimEnd('/');
-        _model = settings.LocalModel.Trim();
-        _visionModel = string.IsNullOrWhiteSpace(settings.LocalVisionModel) ? _model : settings.LocalVisionModel.Trim();
+        _baseUrl = endpoint.BaseUrl.TrimEnd('/');
+        _model = endpoint.Model.Trim();
+        _visionModel = string.IsNullOrWhiteSpace(endpoint.VisionModel) ? _model : endpoint.VisionModel.Trim();
+        _apiKey = endpoint.ApiKey ?? "";
+        _cloud = endpoint.Cloud;
+        _label = endpoint.Label;
+        _contextPath = AppPaths.FileIn(endpoint.ContextFile);
         LoadHistory();
     }
 
-    /// <summary>Ask the server which models it has (GET /models). Used by Settings to detect Qwen.</summary>
-    public static async Task<List<string>> ListModelsAsync(string baseUrl)
+    public static OpenAiEndpoint ForLocal(AppSettings settings) =>
+        new(settings.LocalBaseUrl, settings.LocalModel, settings.LocalVisionModel, null, false, "context.local.json", "the local model server");
+
+    public static OpenAiEndpoint ForOpenAi(AppSettings settings, string apiKey) =>
+        new(settings.OpenAiBaseUrl, settings.OpenAiModel, "", apiKey, true, "context.openai.json",
+            Uri.TryCreate(settings.OpenAiBaseUrl, UriKind.Absolute, out var uri) ? uri.Host : "the OpenAI-compatible service");
+
+    /// <summary>Ask the server which models it has (GET /models). Used by Settings to detect Qwen or to check a cloud key.</summary>
+    public static async Task<List<string>> ListModelsAsync(string baseUrl, string? apiKey = null)
     {
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
+        if (!string.IsNullOrEmpty(apiKey)) http.DefaultRequestHeaders.Authorization = new("Bearer", apiKey);
         try
         {
             var text = await http.GetStringAsync(baseUrl.TrimEnd('/') + "/models");
@@ -44,7 +64,9 @@ public sealed class LocalLlmClient : LlmClientBase
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
-            throw new LlmException($"Couldn't reach {baseUrl}. Is Ollama or LM Studio running?");
+            throw new LlmException(string.IsNullOrEmpty(apiKey)
+                ? $"Couldn't reach {baseUrl}. Is Ollama or LM Studio running?"
+                : $"Couldn't list models at {baseUrl}. Check the address and the key.");
         }
     }
 
@@ -234,9 +256,10 @@ public sealed class LocalLlmClient : LlmClientBase
         {
             ["model"] = model,
             ["messages"] = messages,
-            ["stream"] = streaming,
-            ["temperature"] = tools is null ? 0.3 : 0.1 // deterministic enough for tool calls to be reliable
+            ["stream"] = streaming
         };
+        // Local models do best with a low temperature for tool calls; hosted models choose their own (some reject the field).
+        if (!_cloud) body["temperature"] = tools is null ? 0.3 : 0.1;
         if (tools is not null) body["tools"] = tools;
         LlmDebug.Write($"local request ({tools?.Count ?? 0} tools, {(streaming ? "streaming" : "one piece")})", Regex.Replace(body.ToJsonString(), "base64,[A-Za-z0-9+/=]{100,}", "base64,<image omitted>"));
 
@@ -245,6 +268,7 @@ public sealed class LocalLlmClient : LlmClientBase
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/chat/completions") { Content = JsonContent.Create(body) };
+            if (_apiKey.Length > 0) request.Headers.Authorization = new("Bearer", _apiKey);
             using var resp = await _http.SendAsync(request, streaming ? HttpCompletionOption.ResponseHeadersRead : HttpCompletionOption.ResponseContentRead, cancel);
             status = resp.StatusCode;
 
@@ -263,11 +287,15 @@ public sealed class LocalLlmClient : LlmClientBase
         }
         catch (TaskCanceledException) when (!cancel.IsCancellationRequested)
         {
-            throw new LlmException("The local model took too long to answer (the first request can be slow while the model loads). Try again.");
+            throw new LlmException(_cloud
+                ? $"{_label} took too long to answer. Try again."
+                : "The local model took too long to answer (the first request can be slow while the model loads). Try again.");
         }
         catch (Exception ex) when (ex is HttpRequestException or IOException)
         {
-            throw new LlmException($"Can't reach the local model server at {_baseUrl}. Is Ollama or LM Studio running?");
+            throw new LlmException(_cloud
+                ? $"Can't reach {_label}. Check your internet connection and the address in Settings."
+                : $"Can't reach the local model server at {_baseUrl}. Is Ollama or LM Studio running?");
         }
 
         if (status == HttpStatusCode.OK)
@@ -275,12 +303,23 @@ public sealed class LocalLlmClient : LlmClientBase
             return JsonNode.Parse(text)?["choices"]?[0]?["message"]?.AsObject()
                 ?? throw new LlmException("The local model returned no answer.");
         }
-        throw new LlmException(Describe(status, text, model));
+        throw new LlmException(Describe(status, text, model, _cloud ? _label : null));
     }
 
-    private static string Describe(HttpStatusCode status, string body, string model)
+    internal static string Describe(HttpStatusCode status, string body, string model, string? cloudLabel = null)
     {
         var message = ErrorMessage(body);
+        if (cloudLabel is not null)
+        {
+            if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                return $"{cloudLabel} rejected the API key. Check it in Settings, AI model.";
+            if (status == HttpStatusCode.TooManyRequests)
+                return $"{cloudLabel} is limiting requests (rate limit or no credit left). Wait a moment, or check your account.";
+            if (status == HttpStatusCode.NotFound || message.Contains("model", StringComparison.OrdinalIgnoreCase) && message.Contains("not", StringComparison.OrdinalIgnoreCase))
+                return $"{cloudLabel} doesn't have a model called '{model}', or the key can't use it. Check the model name in Settings.";
+            if ((int)status >= 500) return $"{cloudLabel} is busy or having trouble right now. Try again in a moment.";
+            return $"{cloudLabel} error {(int)status}: {(message.Length > 300 ? message[..300] + "…" : message)}";
+        }
         if (message.Contains("support tools", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("tool", StringComparison.OrdinalIgnoreCase) && message.Contains("not support", StringComparison.OrdinalIgnoreCase))
             return $"'{model}' doesn't support tool calling, so it can't run automations. Use a Qwen build with tool support (qwen2.5 or qwen3).";
@@ -327,11 +366,19 @@ public sealed class LocalLlmClient : LlmClientBase
 
     // ---- Persisted conversation context ---------------------------------------------------------
 
-    public override bool IsCloud => false;
+    public override bool IsCloud => _cloud;
 
     public override void ClearHistory()
     {
         _history.Clear();
+        SaveHistory();
+    }
+
+    public override void SeedHistory(IReadOnlyList<(string Role, string Text)> messages)
+    {
+        _history.Clear();
+        foreach (var (role, text) in messages) _history.Add(new JsonObject { ["role"] = role, ["content"] = text });
+        TrimHistory();
         SaveHistory();
     }
 
@@ -346,7 +393,7 @@ public sealed class LocalLlmClient : LlmClientBase
     {
         try
         {
-            if (AtomicFile.ReadAllText(ContextPath, AtomicFile.IsJson) is { } json && JsonNode.Parse(json) is JsonArray saved)
+            if (AtomicFile.ReadAllText(_contextPath, AtomicFile.IsJson) is { } json && JsonNode.Parse(json) is JsonArray saved)
                 foreach (var entry in saved) _history.Add(entry!.DeepClone());
             TrimHistory();
         }
@@ -355,7 +402,7 @@ public sealed class LocalLlmClient : LlmClientBase
 
     private void SaveHistory()
     {
-        try { AtomicFile.WriteAllText(ContextPath, _history.ToJsonString()); }
+        try { AtomicFile.WriteAllText(_contextPath, _history.ToJsonString()); }
         catch (IOException) { }
     }
 }

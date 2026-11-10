@@ -34,6 +34,16 @@ public sealed class FocusService
         }
     }
 
+    /// <summary>The work period that is running now (when it began and ends), or null outside one.</summary>
+    public (DateTime Start, DateTime End)? CurrentWork(DateTime now)
+    {
+        lock (_gate)
+        {
+            foreach (var w in _work) if (now >= w.Start && now < w.End) return w;
+            return null;
+        }
+    }
+
     public static bool IsFocusReminder(string message) => message.StartsWith(Mark, StringComparison.Ordinal);
 
     /// <summary>Starts <paramref name="cycles"/> rounds of work then break. Replaces any session already running.</summary>

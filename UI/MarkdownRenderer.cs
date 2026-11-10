@@ -19,9 +19,9 @@ internal static class MarkdownRenderer
     private static readonly Regex HeadingPattern = new(@"^(#{1,3})\s+(.*)$", RegexOptions.Compiled);
     private static readonly Regex ListPattern = new(@"^\s*(?<m>[-*•]|\d+\.)\s+(?<t>.*)$", RegexOptions.Compiled);
 
-    private static readonly Brush CodeBackground = Frozen("#33000000");
-    private static readonly Brush InlineCodeBackground = Frozen("#33FFFFFF");
-    private static readonly Brush LinkBrush = Frozen("#8FB0FF");
+    private static Brush CodeBackground => ThemeCatalog.PaletteBrush("CodeBack");
+    private static Brush InlineCodeBackground => ThemeCatalog.PaletteBrush("InlineCodeBack");
+    private static Brush LinkBrush => ThemeCatalog.PaletteBrush("LinkFg");
     private static readonly FontFamily Mono = new("Cascadia Mono, Consolas");
 
     public static StackPanel Render(string markdown, Brush foreground)
@@ -151,12 +151,5 @@ internal static class MarkdownRenderer
             position = m.Index + m.Length;
         }
         if (position < text.Length) inlines.Add(new Run(text[position..]));
-    }
-
-    private static SolidColorBrush Frozen(string hex)
-    {
-        var brush = (SolidColorBrush)new BrushConverter().ConvertFromString(hex)!;
-        brush.Freeze();
-        return brush;
     }
 }

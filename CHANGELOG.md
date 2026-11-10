@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.2.0
+
+### New
+- **More AI choices.** Besides Gemini and a local model she now works with **Claude** (through Anthropic's official library; `claude-opus-5-5` by default, with chips for the cheaper Sonnet and Haiku) and with **any OpenAI-compatible service** such as OpenAI, OpenRouter, Groq or Together. Each keeps its own encrypted key, and `/model claude`, `/model openai gpt-4o-mini` and `/model local` switch from the chat. The "send this to ...?" question names the company the request is going to.
+- **Several named chats and pinned messages.** New chat now starts another chat and *keeps* the old one. The chats button in the header lists them: open, rename or delete one. Chats are named after the first thing you type, and an old chat that you open again is read back to the model so you can carry on. Pin any message (or `/pin` her last reply); `/pins` and the Pinned tab list them from every chat and jump to the message. New commands: `/chats`, `/chat`, `/rename`, `/pin`, `/pins`; `/clear` empties only the open chat and `/export` saves only the open chat.
+- **A floating mini timer.** A small always-on-top countdown for the focus session (with a progress bar), the break, or a reminder less than an hour away. It never takes focus, can be dragged (and remembers where), hides while a full-screen app or game is running, and offers to stop the session or hide itself on right-click. `/timer on|off|reset`, or Settings, Look and alerts.
+- **Light theme and window size.** Dark, light, or match Windows (`/theme light`), with the accent darkened automatically on light so text stays readable, and Small, Normal, Large and Larger window and text sizes (`/size large`).
+- **Backup and restore.** `/backup` (or Settings, PC & files) saves settings, memory, routines, saved plans, reminders and notes to one zip file; `/restore` shows what is inside, asks first and only adds to what you have. It never holds an API key or chat history and never restores *Run freely*, administrator commands, the "ask before sending" switch, clipboard history or a cloud service address.
+- **Plans you can edit, save and schedule.** Before you run a plan you can reword, move, remove or add steps. **Save plan** (or `/plan save <name>`) keeps it; `/plan run <name>` shows it again; `/plan schedule <name> every weekday at 9am` brings it up on a schedule. A scheduled plan **never runs by itself**: it plays the reminder sound, shows the plan and waits for you to press Run plan. `/plans`, `/plan unschedule`, `/plan delete`.
+
+### Changed
+- "New chat" no longer erases the chat you were in. To remove chats, delete one from the header list, or `/chats delete all` (it asks first). The privacy page says so.
+- The header's model label shows the chosen model; the voice-to-text option applies to Gemini only.
+- Colours in the windows now follow the theme live (including the dropdowns, buttons and text boxes), so changing the look needs no restart.
+
+### Tests
+- 580+ unit tests, including new ones for the providers (against a fake server on this PC), the chat and pin store and its upgrade of an old database, backup safety (tampered files, unknown tools, foreign server addresses), plan editing and scheduling, the timer text and light-theme contrast for every theme.
+- Not verified live in this release: Claude with a real key, the floating timer window on screen, and the new window layouts on the running app (checked in offscreen renders and unit tests only).
+
 ## 2.1.0
 
 ### New

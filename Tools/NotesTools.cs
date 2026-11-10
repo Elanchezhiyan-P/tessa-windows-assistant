@@ -5,7 +5,7 @@ namespace WinCompanion.Tools;
 
 internal static class NotesTools
 {
-    private static string NotesPath => Path.Combine(
+    internal static string NotesPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "WinCompanion", "notes.md");
 
     /// <summary>Appends a timestamped line to the notes file. A to-do is a Markdown checkbox, so any Markdown app shows it as a task.</summary>

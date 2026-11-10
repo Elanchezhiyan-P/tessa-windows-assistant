@@ -25,13 +25,16 @@
             <!-- Header: drag handle, current app, actions -->
             <Grid Grid.Row="0" Background="Transparent" Margin="18,8,8,0" MouseLeftButtonDown="Header_MouseDown">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="✦" Foreground="{StaticResource Accent}" FontSize="14" Margin="0,0,8,0" />
-                    <TextBlock x:Name="HeaderText" Text="Tessa" Foreground="{StaticResource Fg}"
+                    <TextBlock Text="✦" Foreground="{DynamicResource Accent}" FontSize="14" Margin="0,0,8,0" />
+                    <TextBlock x:Name="HeaderText" Text="Tessa" Foreground="{DynamicResource Fg}"
                                FontSize="13" FontWeight="SemiBold" />
-                    <TextBlock x:Name="HeaderApp" Foreground="{StaticResource Muted}" FontSize="13" Margin="8,0,0,0" />
+                    <TextBlock x:Name="HeaderChat" Foreground="{DynamicResource Muted}" FontSize="13" Margin="8,0,0,0"
+                               MaxWidth="190" TextTrimming="CharacterEllipsis" />
+                    <TextBlock x:Name="HeaderApp" Foreground="{DynamicResource Muted}" FontSize="13" Margin="8,0,0,0" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button x:Name="MuteButton" Style="{StaticResource IconButton}" Content="&#xE767;" ToolTip="Mute her voice" Click="Mute_Click" />
+                    <Button x:Name="ChatsButton" Style="{StaticResource IconButton}" Content="&#xE8BD;" ToolTip="Your chats and pinned messages" Click="Chats_Click" />
                     <Button Style="{StaticResource IconButton}" Content="&#xE710;" ToolTip="New chat" Click="NewChat_Click" />
                     <Button x:Name="ToggleButton" Style="{StaticResource IconButton}" Content="&#xE70D;"
                             ToolTip="Show or hide history" Click="Toggle_Click" />
@@ -39,6 +42,9 @@
                     <Button Style="{StaticResource IconButton}" Content="&#xE711;" ToolTip="Hide (Esc)" Click="Close_Click" />
                 </StackPanel>
             </Grid>
+
+            <Popup x:Name="ChatsPopup" PlacementTarget="{Binding ElementName=ChatsButton}" Placement="Bottom" HorizontalOffset="-150"
+                   StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade" />
 
             <!-- Chat history -->
             <ScrollViewer x:Name="Scroll" Grid.Row="1" MaxHeight="440" VerticalScrollBarVisibility="Auto" ui:SmoothScroll.Enabled="True"
@@ -55,9 +61,9 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel Grid.Row="0" Margin="22,4,22,0">
-                    <TextBlock Text="Settings" Foreground="{StaticResource Fg}" FontSize="20" FontWeight="SemiBold" />
-                    <TextBlock x:Name="SettingsNote" Foreground="#FFC27A" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0" />
-                    <Border Background="{StaticResource Surface}" CornerRadius="11" Padding="3" HorizontalAlignment="Left" Margin="0,4,0,0">
+                    <TextBlock Text="Settings" Foreground="{DynamicResource Fg}" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock x:Name="SettingsNote" Foreground="{DynamicResource NoteFg}" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0" />
+                    <Border Background="{DynamicResource Surface}" CornerRadius="11" Padding="3" HorizontalAlignment="Left" Margin="0,4,0,0">
                         <StackPanel Orientation="Horizontal">
                             <RadioButton x:Name="TabAi" Style="{StaticResource Segment}" Content="AI model" GroupName="tab"
                                          IsChecked="True" Checked="Tab_Changed" />
@@ -80,13 +86,17 @@
 
                         <!-- AI model -->
                         <StackPanel x:Name="PageAi">
-                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,8,0,0">
+                            <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,8,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="Which brain should she use?" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
-                                    <Border Background="#14FFFFFF" CornerRadius="11" Padding="3" HorizontalAlignment="Left" Margin="0,10,0,0">
+                                    <TextBlock Text="Which brain should she use?" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <Border Background="{DynamicResource SegmentBack}" CornerRadius="11" Padding="3" HorizontalAlignment="Left" Margin="0,10,0,0">
                                         <StackPanel Orientation="Horizontal">
                                             <RadioButton x:Name="ProviderGemini" Style="{StaticResource Segment}"
                                                          Content="Gemini (cloud)" GroupName="provider" Checked="Provider_Changed" />
+                                            <RadioButton x:Name="ProviderClaude" Style="{StaticResource Segment}"
+                                                         Content="Claude" GroupName="provider" Checked="Provider_Changed" />
+                                            <RadioButton x:Name="ProviderOpenAi" Style="{StaticResource Segment}"
+                                                         Content="OpenAI-compatible" GroupName="provider" Checked="Provider_Changed" />
                                             <RadioButton x:Name="ProviderLocal" Style="{StaticResource Segment}"
                                                          Content="Local (Qwen)" GroupName="provider" Checked="Provider_Changed" />
                                         </StackPanel>
@@ -95,12 +105,51 @@
                                     <StackPanel x:Name="GeminiGroup">
                                         <TextBlock Text="Gemini API key" Style="{StaticResource FieldLabel}" />
                                         <PasswordBox x:Name="GeminiKeyBox" Style="{StaticResource PasswordField}" />
-                                        <TextBlock x:Name="GeminiKeyState" Foreground="{StaticResource Muted}" FontSize="11.5"
+                                        <TextBlock x:Name="GeminiKeyState" Foreground="{DynamicResource Muted}" FontSize="11.5"
                                                    TextWrapping="Wrap" Margin="2,6,0,0" />
                                         <Button x:Name="RemoveKeyButton" Style="{StaticResource GhostButton}" Content="Remove saved key"
                                                 HorizontalAlignment="Left" Margin="0,8,0,0" Click="RemoveKey_Click" />
-                                        <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,8,0,0"
+                                        <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,8,0,0"
                                                    Text="Free key at aistudio.google.com/apikey. Stored encrypted for your Windows account." />
+                                    </StackPanel>
+
+                                    <StackPanel x:Name="ClaudeGroup" Visibility="Collapsed">
+                                        <TextBlock Text="Claude API key" Style="{StaticResource FieldLabel}" />
+                                        <PasswordBox x:Name="ClaudeKeyBox" Style="{StaticResource PasswordField}" />
+                                        <TextBlock x:Name="ClaudeKeyState" Foreground="{DynamicResource Muted}" FontSize="11.5"
+                                                   TextWrapping="Wrap" Margin="2,6,0,0" />
+                                        <Button x:Name="RemoveClaudeKeyButton" Style="{StaticResource GhostButton}" Content="Remove saved key"
+                                                HorizontalAlignment="Left" Margin="0,8,0,0" Click="RemoveClaudeKey_Click" />
+                                        <TextBlock Text="Model" Style="{StaticResource FieldLabel}" />
+                                        <WrapPanel Margin="0,0,0,2">
+                                            <Button Style="{StaticResource Chip}" Content="Opus 5.5" Tag="claude-opus-5-5" Click="ClaudeModelChip_Click" />
+                                            <Button Style="{StaticResource Chip}" Content="Sonnet 5.5" Tag="claude-sonnet-5-5" Click="ClaudeModelChip_Click" />
+                                            <Button Style="{StaticResource Chip}" Content="Haiku 5.5" Tag="claude-haiku-5-5" Click="ClaudeModelChip_Click" />
+                                        </WrapPanel>
+                                        <TextBox x:Name="ClaudeModelBox" Style="{StaticResource Field}" />
+                                        <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,8,0,0"
+                                                   Text="Get a key at console.anthropic.com. Stored encrypted for your Windows account. Your messages, memory and anything you approve are sent to Anthropic. Haiku and Sonnet cost less than Opus." />
+                                    </StackPanel>
+
+                                    <StackPanel x:Name="OpenAiGroup" Visibility="Collapsed">
+                                        <TextBlock Text="Service" Style="{StaticResource FieldLabel}" />
+                                        <WrapPanel Margin="0,0,0,2">
+                                            <Button Style="{StaticResource Chip}" Content="OpenAI" Tag="https://api.openai.com/v1|gpt-4o-mini" Click="OpenAiPreset_Click" />
+                                            <Button Style="{StaticResource Chip}" Content="OpenRouter" Tag="https://openrouter.ai/api/v1|openai/gpt-4o-mini" Click="OpenAiPreset_Click" />
+                                            <Button Style="{StaticResource Chip}" Content="Groq" Tag="https://api.groq.com/openai/v1|llama-3.3-70b-versatile" Click="OpenAiPreset_Click" />
+                                            <Button Style="{StaticResource Chip}" Content="Together" Tag="https://api.together.xyz/v1|meta-llama/Llama-3.3-70B-Instruct-Turbo" Click="OpenAiPreset_Click" />
+                                        </WrapPanel>
+                                        <TextBox x:Name="OpenAiUrl" Style="{StaticResource Field}" />
+                                        <TextBlock Text="API key" Style="{StaticResource FieldLabel}" />
+                                        <PasswordBox x:Name="OpenAiKeyBox" Style="{StaticResource PasswordField}" />
+                                        <TextBlock x:Name="OpenAiKeyState" Foreground="{DynamicResource Muted}" FontSize="11.5"
+                                                   TextWrapping="Wrap" Margin="2,6,0,0" />
+                                        <Button x:Name="RemoveOpenAiKeyButton" Style="{StaticResource GhostButton}" Content="Remove saved key"
+                                                HorizontalAlignment="Left" Margin="0,8,0,0" Click="RemoveOpenAiKey_Click" />
+                                        <TextBlock Text="Model" Style="{StaticResource FieldLabel}" />
+                                        <TextBox x:Name="OpenAiModelBox" Style="{StaticResource Field}" />
+                                        <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,8,0,0"
+                                                   Text="Works with any service that speaks the OpenAI chat API and supports tools. The key is stored encrypted for your Windows account and sent only to this address. Your messages, memory and anything you approve are sent there too." />
                                     </StackPanel>
 
                                     <StackPanel x:Name="LocalGroup" Visibility="Collapsed">
@@ -126,9 +175,9 @@
                                         <TextBlock Text="Vision model for screenshots (optional)" Style="{StaticResource FieldLabel}" />
                                         <TextBox x:Name="LocalVision" Style="{StaticResource Field}" />
 
-                                        <TextBlock x:Name="LocalAdvice" Foreground="{StaticResource Accent}" FontSize="11.5"
+                                        <TextBlock x:Name="LocalAdvice" Foreground="{DynamicResource Accent}" FontSize="11.5"
                                                    TextWrapping="Wrap" Margin="2,8,0,0" />
-                                        <TextBlock x:Name="LocalStatus" Foreground="{StaticResource Muted}" FontSize="11.5"
+                                        <TextBlock x:Name="LocalStatus" Foreground="{DynamicResource Muted}" FontSize="11.5"
                                                    TextWrapping="Wrap" Margin="2,8,0,0"
                                                    Text="Use a Qwen build with tool support (qwen2.5 or qwen3). Nothing leaves this PC." />
                                     </StackPanel>
@@ -138,9 +187,9 @@
 
                         <!-- You and her -->
                         <StackPanel x:Name="PageYou" Visibility="Collapsed">
-                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,8,0,0">
+                            <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,8,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="Getting to know each other" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Text="Getting to know each other" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
                                     <TextBlock Text="Your name" Style="{StaticResource FieldLabel}" />
                                     <TextBox x:Name="ProfileName" Style="{StaticResource Field}" MaxLength="40" />
                                     <TextBlock Text="What she should call you" Style="{StaticResource FieldLabel}" />
@@ -148,7 +197,7 @@
                                     <TextBlock Text="Her name (also her wake word, like “Hey Tessa”)" Style="{StaticResource FieldLabel}" />
                                     <TextBox x:Name="AssistantNameBox" Style="{StaticResource Field}" MaxLength="18" />
                                     <TextBlock Text="Her voice" Style="{StaticResource FieldLabel}" />
-                                    <Border Background="#14FFFFFF" CornerRadius="11" Padding="3" HorizontalAlignment="Left">
+                                    <Border Background="{DynamicResource SegmentBack}" CornerRadius="11" Padding="3" HorizontalAlignment="Left">
                                         <StackPanel Orientation="Horizontal">
                                             <RadioButton x:Name="VoiceFemaleSeg" Style="{StaticResource Segment}" Content="Female" GroupName="voice" />
                                             <RadioButton x:Name="VoiceMaleSeg" Style="{StaticResource Segment}" Content="Male" GroupName="voice" />
@@ -172,9 +221,9 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                            <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="Daily briefing" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Text="Daily briefing" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
                                     <TextBlock Text="Say “briefing” any time, or show it automatically the first time she starts each day." Style="{StaticResource FieldLabel}" />
                                     <CheckBox x:Name="BriefingSwitch" Style="{StaticResource Switch}" Margin="2,10,0,0"
                                               Content="Show my briefing when I start my day" />
@@ -185,23 +234,23 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                            <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="Who delivers your reminders" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
-                                    <Border Background="#14FFFFFF" CornerRadius="11" Padding="3" HorizontalAlignment="Left" Margin="0,10,0,0">
+                                    <TextBlock Text="Who delivers your reminders" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <Border Background="{DynamicResource SegmentBack}" CornerRadius="11" Padding="3" HorizontalAlignment="Left" Margin="0,10,0,0">
                                         <WrapPanel x:Name="PetChoices" MaxWidth="520" />
                                     </Border>
                                     <Button Style="{StaticResource GhostButton}" Content="Preview" HorizontalAlignment="Left"
                                             Margin="0,10,0,0" Click="PreviewPet_Click" />
-                                    <TextBlock x:Name="PetHint" Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap"
+                                    <TextBlock x:Name="PetHint" Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap"
                                                Margin="2,6,0,0" />
                                 </StackPanel>
                             </Border>
 
-                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                            <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="What she remembers about you" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
-                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"
+                                    <TextBlock Text="What she remembers about you" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"
                                                Text="These facts are added to every request, so with Gemini they are sent to Google. Delete any you don't want her to keep." />
                                     <StackPanel x:Name="MemoryList" Margin="0,10,0,0" />
                                     <Grid Margin="0,6,0,0">
@@ -220,21 +269,38 @@
 
                         <!-- Look and alerts -->
                         <StackPanel x:Name="PageLook" Visibility="Collapsed">
-                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,8,0,0">
+                            <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,8,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="Colours" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
-                                    <Border Background="#14FFFFFF" CornerRadius="11" Padding="3" HorizontalAlignment="Left" Margin="0,10,0,0">
+                                    <TextBlock Text="Appearance" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <Border Background="{DynamicResource SegmentBack}" CornerRadius="11" Padding="3" HorizontalAlignment="Left" Margin="0,10,0,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton x:Name="ModeDark" Checked="Appearance_Checked" Style="{StaticResource Segment}" Content="Dark" GroupName="mode" Tag="dark" />
+                                            <RadioButton x:Name="ModeLight" Checked="Appearance_Checked" Style="{StaticResource Segment}" Content="Light" GroupName="mode" Tag="light" />
+                                            <RadioButton x:Name="ModeSystem" Checked="Appearance_Checked" Style="{StaticResource Segment}" Content="Match Windows" GroupName="mode" Tag="system" />
+                                        </StackPanel>
+                                    </Border>
+                                    <TextBlock Text="Size of the window and text" Style="{StaticResource FieldLabel}" />
+                                    <Border Background="{DynamicResource SegmentBack}" CornerRadius="11" Padding="3" HorizontalAlignment="Left">
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton x:Name="SizeSmall" Checked="Size_Checked" Style="{StaticResource Segment}" Content="Small" GroupName="size" Tag="90" />
+                                            <RadioButton x:Name="SizeNormal" Checked="Size_Checked" Style="{StaticResource Segment}" Content="Normal" GroupName="size" Tag="100" />
+                                            <RadioButton x:Name="SizeLarge" Checked="Size_Checked" Style="{StaticResource Segment}" Content="Large" GroupName="size" Tag="115" />
+                                            <RadioButton x:Name="SizeLarger" Checked="Size_Checked" Style="{StaticResource Segment}" Content="Larger" GroupName="size" Tag="130" />
+                                        </StackPanel>
+                                    </Border>
+                                    <TextBlock Text="Colours" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" Margin="0,16,0,0" />
+                                    <Border Background="{DynamicResource SegmentBack}" CornerRadius="11" Padding="3" HorizontalAlignment="Left" Margin="0,10,0,0">
                                         <WrapPanel x:Name="ThemeChoices" MaxWidth="520" />
                                     </Border>
                                     <TextBlock Text="Your own accent colour (for example #FF8800; empty uses the theme's)" Style="{StaticResource FieldLabel}" />
                                     <TextBox x:Name="AccentBox" Style="{StaticResource Field}" MaxLength="7" TextChanged="Accent_Changed" />
-                                    <TextBlock x:Name="ThemeHint" Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,6,0,0" />
+                                    <TextBlock x:Name="ThemeHint" Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,6,0,0" />
                                 </StackPanel>
                             </Border>
 
-                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                            <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="Quiet hours" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Text="Quiet hours" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
                                     <TextBlock Text="No sound, voice, character or pop-ups in this window of the day. Nudges and warnings are skipped; anything missed waits in the chat."
                                                Style="{StaticResource FieldLabel}" TextWrapping="Wrap" />
                                     <CheckBox x:Name="QuietSwitch" Style="{StaticResource Switch}" Margin="2,10,0,0" Content="Keep quiet during these hours" />
@@ -258,40 +324,50 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                            <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="Warnings" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Text="Floating timer" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <CheckBox x:Name="MiniTimerSwitch" Style="{StaticResource Switch}" Margin="2,12,0,0"
+                                              Content="Show a small countdown on screen for focus sessions and reminders" />
+                                    <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,6,0,0"
+                                               Text="It appears only while a focus session runs or a reminder is less than an hour away, stays on top without taking focus, hides while a full-screen app or game is running, and can be dragged anywhere. Right-click it to stop the session or hide it." />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Warnings" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
                                     <CheckBox x:Name="HealthSwitch" Style="{StaticResource Switch}" Margin="2,12,0,0"
                                               Content="Tell me when a drive is nearly full or the battery is low" />
-                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,6,0,0"
+                                    <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,6,0,0"
                                                Text="Checked every few minutes on this PC. A drive counts as low under 5% free (between 10 and 30 GB); the battery at 20% and 10%. Each problem is reported once." />
-                                    <TextBlock x:Name="HealthNow" Foreground="{StaticResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="2,10,0,0" />
+                                    <TextBlock x:Name="HealthNow" Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="2,10,0,0" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>
 
                         <!-- Safety -->
                         <StackPanel x:Name="PageSafety" Visibility="Collapsed">
-                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,8,0,0">
+                            <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,8,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="Privacy" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Text="Privacy" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
                                     <CheckBox x:Name="PrivacyAsk" Style="{StaticResource Switch}" Margin="2,12,0,0"
                                               Content="Ask before sending a screenshot, clipboard text or file to Gemini" />
-                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,10,0,0"
+                                    <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,10,0,0"
                                                Text="Gemini is a Google service, so what you send leaves this PC. A local model keeps everything here." />
                                     <CheckBox x:Name="ClipboardHistorySwitch" Style="{StaticResource Switch}" Margin="2,14,0,0"
                                               Content="Remember the last 100 things I copy, so I can ask “what was that link I copied?”" />
-                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,6,0,0"
+                                    <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,6,0,0"
                                                Text="Off by default. It is kept only on this PC, and copies from password managers are skipped. Matches are shared with Gemini only after you approve." />
                                     <Button Style="{StaticResource GhostButton}" Content="Clear clipboard history" HorizontalAlignment="Left"
                                             Margin="0,8,0,0" Click="ClearClipboard_Click" />
                                 </StackPanel>
                             </Border>
 
-                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                            <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="PowerShell commands" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
-                                    <Border Background="#14FFFFFF" CornerRadius="11" Padding="3" HorizontalAlignment="Left" Margin="0,10,0,0">
+                                    <TextBlock Text="PowerShell commands" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <Border Background="{DynamicResource SegmentBack}" CornerRadius="11" Padding="3" HorizontalAlignment="Left" Margin="0,10,0,0">
                                         <StackPanel Orientation="Horizontal">
                                             <RadioButton x:Name="PsAsk" Style="{StaticResource Segment}"
                                                          Content="Ask unless read-only" GroupName="ps" />
@@ -299,7 +375,7 @@
                                                          Content="Run freely" GroupName="ps" />
                                         </StackPanel>
                                     </Border>
-                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,10,0,0"
+                                    <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,10,0,0"
                                                Text="Run freely lets her run the commands she writes without asking, except dangerous ones (delete, overwrite, install, download-and-run, registry, shutdown), which still need your approval. Small local models make mistakes, so start with the default." />
                                     <CheckBox x:Name="PsAdmin" Style="{StaticResource Switch}" Margin="2,14,0,0"
                                               Content="Allow administrator commands (Windows asks you each time)" />
@@ -309,12 +385,12 @@
 
                         <!-- This PC -->
                         <StackPanel x:Name="PagePc" Visibility="Collapsed">
-                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,8,0,0">
+                            <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,8,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="This PC" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
-                                    <TextBlock x:Name="SystemText" Foreground="{StaticResource Fg}" FontSize="12.5" TextWrapping="Wrap"
+                                    <TextBlock Text="This PC" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="SystemText" Foreground="{DynamicResource Fg}" FontSize="12.5" TextWrapping="Wrap"
                                                LineHeight="20" Margin="0,10,0,0" />
-                                    <TextBlock x:Name="SystemAdvice" Foreground="{StaticResource Accent}" FontSize="12.5" TextWrapping="Wrap"
+                                    <TextBlock x:Name="SystemAdvice" Foreground="{DynamicResource Accent}" FontSize="12.5" TextWrapping="Wrap"
                                                Margin="0,10,0,0" />
                                     <WrapPanel Margin="0,12,0,0">
                                         <Button x:Name="SystemRefreshButton" Style="{StaticResource GhostButton}" Content="Check this PC"
@@ -323,52 +399,52 @@
                                     </WrapPanel>
                                     <CheckBox x:Name="CheckSystemSwitch" Style="{StaticResource Switch}" Margin="2,14,0,0"
                                               Content="Check this PC automatically when I open Settings" />
-                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,6,0,0"
+                                    <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,6,0,0"
                                                Text="Only memory, processor, graphics and disk sizes are read. No serial numbers or personal details, and nothing is sent anywhere." />
                                 </StackPanel>
                             </Border>
 
                             <!-- Why is it slow? -->
-                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                            <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="Is your PC slow?" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
-                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"
+                                    <TextBlock Text="Is your PC slow?" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"
                                                Text="A quick check of the processor, memory, drives, start-up programs and junk files, with a likely cause and a fix for each. It changes nothing." />
                                     <Button x:Name="SlowButton" Style="{StaticResource GhostButton}" Content="Check now" HorizontalAlignment="Left"
                                             Margin="0,10,0,0" Click="SlowCheck_Click" />
-                                    <TextBlock x:Name="SlowText" Foreground="{StaticResource Fg}" FontSize="12.5" TextWrapping="Wrap" LineHeight="19" Margin="0,10,0,0" />
+                                    <TextBlock x:Name="SlowText" Foreground="{DynamicResource Fg}" FontSize="12.5" TextWrapping="Wrap" LineHeight="19" Margin="0,10,0,0" />
                                 </StackPanel>
                             </Border>
 
                             <!-- Start-up programs -->
-                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                            <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="Programs that start with Windows" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
-                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"
+                                    <TextBlock Text="Programs that start with Windows" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"
                                                Text="Switch off the ones you don't need so Windows starts faster. Nothing is uninstalled, and you can switch them back on. The change applies from the next sign-in." />
                                     <StackPanel x:Name="StartupList" Margin="0,10,0,0" />
                                 </StackPanel>
                             </Border>
 
                             <!-- Junk files -->
-                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                            <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="Clean up junk files" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
-                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"
+                                    <TextBlock Text="Clean up junk files" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"
                                                Text="Temporary files, internet cache, crash dumps and error reports that are over a day old. Only those folders are touched. This permanently deletes the files, so check the size first." />
                                     <WrapPanel Margin="0,10,0,0">
                                         <Button Style="{StaticResource GhostButton}" Content="Check how much" Margin="0,0,8,0" Click="CleanupScan_Click" />
                                         <Button x:Name="CleanupRunButton" Style="{StaticResource GhostButton}" Content="Clean up" IsEnabled="False" Click="CleanupRun_Click" />
                                     </WrapPanel>
-                                    <TextBlock x:Name="CleanupText" Foreground="{StaticResource Fg}" FontSize="12.5" TextWrapping="Wrap" LineHeight="19" Margin="0,10,0,0" />
+                                    <TextBlock x:Name="CleanupText" Foreground="{DynamicResource Fg}" FontSize="12.5" TextWrapping="Wrap" LineHeight="19" Margin="0,10,0,0" />
                                 </StackPanel>
                             </Border>
 
                             <!-- Search my files -->
-                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                            <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="Search my files" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
-                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"
+                                    <TextBlock Text="Search my files" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"
                                                Text="Choose folders and I'll index the text of the PDF, Word, Excel, PowerPoint and text files in them, so you can ask “find the invoice from March” or ask about a document. Only folders you add are read. The index stays on this PC; a cloud model sees document text only after you approve." />
                                     <StackPanel x:Name="IndexList" Margin="0,10,0,0" />
                                     <WrapPanel Margin="0,8,0,0">
@@ -376,25 +452,39 @@
                                         <Button Style="{StaticResource GhostButton}" Content="Update now" Margin="0,0,8,0" Click="IndexUpdate_Click" />
                                         <Button x:Name="IndexClearButton" Style="{StaticResource GhostButton}" Content="Forget all" Click="IndexClear_Click" />
                                     </WrapPanel>
-                                    <TextBlock x:Name="IndexStatus" Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,8,0,0" />
+                                    <TextBlock x:Name="IndexStatus" Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,8,0,0" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Backup -->
+                            <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Backup and restore" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"
+                                               Text="Save your settings, what I remember, routines, reminders and notes to one file, to move to a new PC. It never holds an API key or your chat history. Restoring adds to what is there and never turns off a safety question." />
+                                    <WrapPanel Margin="0,10,0,0">
+                                        <Button Style="{StaticResource GhostButton}" Content="Back up…" Margin="0,0,8,0" Click="BackupButton_Click" />
+                                        <Button Style="{StaticResource GhostButton}" Content="Restore…" Click="RestoreButton_Click" />
+                                    </WrapPanel>
+                                    <TextBlock x:Name="BackupStatus" Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,8,0,0" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>
 
                         <!-- About -->
                         <StackPanel x:Name="PageAbout" Visibility="Collapsed">
-                            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,8,0,0">
+                            <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,8,0,0">
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="✦" Foreground="{StaticResource Accent}" FontSize="20" Margin="0,0,8,0" />
-                                        <TextBlock x:Name="AboutName" Text="Tessa" Foreground="{StaticResource Fg}" FontSize="20" FontWeight="SemiBold" />
+                                        <TextBlock Text="✦" Foreground="{DynamicResource Accent}" FontSize="20" Margin="0,0,8,0" />
+                                        <TextBlock x:Name="AboutName" Text="Tessa" Foreground="{DynamicResource Fg}" FontSize="20" FontWeight="SemiBold" />
                                     </StackPanel>
-                                    <TextBlock x:Name="AboutVersion" Foreground="{StaticResource Muted}" FontSize="12" Margin="0,4,0,0" />
-                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="12.5" TextWrapping="Wrap" Margin="0,10,0,0"
+                                    <TextBlock x:Name="AboutVersion" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,4,0,0" />
+                                    <TextBlock Foreground="{DynamicResource Muted}" FontSize="12.5" TextWrapping="Wrap" Margin="0,10,0,0"
                                                Text="A free, open-source AI companion for Windows. Works with Gemini or a local model." />
 
                                     <TextBlock Text="Made by" Style="{StaticResource FieldLabel}" Margin="2,16,0,2" />
-                                    <TextBlock Text="Elanchezhiyan P" Foreground="{StaticResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Text="Elanchezhiyan P" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
 
                                     <WrapPanel Margin="0,12,0,0">
                                         <Button Style="{StaticResource GhostButton}" Content="codebyelan.in" Margin="0,0,8,8"
@@ -412,7 +502,7 @@
                                         <Button Style="{StaticResource GhostButton}" Content="Show the tour" Margin="0,0,8,8"
                                                 Click="Tour_Click" />
                                     </WrapPanel>
-                                    <TextBlock Foreground="{StaticResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,4,0,0"
+                                    <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,4,0,0"
                                                Text="MIT licence. Copyright (c) 2026 Elanchezhiyan P. Character credits are in Assets\Pets\CREDITS.md." />
                                 </StackPanel>
                             </Border>
@@ -438,8 +528,8 @@
             <Border x:Name="ConfirmCard" Grid.Row="3" Margin="14,4,14,4" Padding="14,12" CornerRadius="12"
                     Background="#33FFB454" BorderBrush="#66FFB454" BorderThickness="1" Visibility="Collapsed">
                 <StackPanel>
-                    <TextBlock Text="Allow this action?" Foreground="{StaticResource Fg}" FontWeight="SemiBold" FontSize="13" />
-                    <TextBlock x:Name="ConfirmText" Foreground="{StaticResource Muted}" FontSize="12" TextWrapping="Wrap"
+                    <TextBlock Text="Allow this action?" Foreground="{DynamicResource Fg}" FontWeight="SemiBold" FontSize="13" />
+                    <TextBlock x:Name="ConfirmText" Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap"
                                FontFamily="Cascadia Mono, Consolas" Margin="0,6,0,10" MaxHeight="110" />
                     <StackPanel Orientation="Horizontal">
                         <Button Style="{StaticResource PrimaryButton}" Content="Allow" Click="Allow_Click" />
@@ -449,8 +539,8 @@
             </Border>
 
             <!-- Input -->
-            <Border Grid.Row="4" Margin="14,4,14,4" CornerRadius="14" Background="{StaticResource Surface}"
-                    BorderBrush="{StaticResource Stroke}" BorderThickness="1">
+            <Border Grid.Row="4" Margin="14,4,14,4" CornerRadius="14" Background="{DynamicResource Surface}"
+                    BorderBrush="{DynamicResource Stroke}" BorderThickness="1">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -460,19 +550,19 @@
 
                     <Grid>
                         <TextBlock x:Name="Placeholder" Text="Ask anything…   (Ctrl+Alt+V to talk)"
-                                   Foreground="{StaticResource Muted}" FontSize="15" Margin="16,0,0,0"
+                                   Foreground="{DynamicResource Muted}" FontSize="15" Margin="16,0,0,0"
                                    VerticalAlignment="Center" IsHitTestVisible="False" />
                         <TextBox x:Name="Input" Background="Transparent" BorderThickness="0"
-                                 Foreground="{StaticResource Fg}" CaretBrush="White" FontSize="15"
-                                 SelectionBrush="{StaticResource Accent}"
+                                 Foreground="{DynamicResource Fg}" CaretBrush="White" FontSize="15"
+                                 SelectionBrush="{DynamicResource Accent}"
                                  Padding="14,12" VerticalContentAlignment="Center"
                                  KeyDown="Input_KeyDown" PreviewKeyDown="Input_PreviewKeyDown" TextChanged="Input_TextChanged" />
                         <Popup x:Name="SlashPopup" PlacementTarget="{Binding ElementName=Input}" Placement="Top"
                                StaysOpen="True" AllowsTransparency="True" Focusable="False">
-                            <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Stroke}"
+                            <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Stroke}"
                                     BorderThickness="1" CornerRadius="10" Padding="4" Margin="0,0,0,6">
                                 <ListBox x:Name="SlashList" Background="Transparent" BorderThickness="0"
-                                         Foreground="{StaticResource Fg}" FontSize="13" Focusable="False"
+                                         Foreground="{DynamicResource Fg}" FontSize="13" Focusable="False"
                                          MouseUp="SlashList_Click" />
                             </Border>
                         </Popup>
@@ -487,8 +577,8 @@
             </Border>
 
             <Grid Grid.Row="5" Margin="20,0,18,10">
-                <TextBlock x:Name="Status" MinHeight="14" Foreground="{StaticResource Muted}" FontSize="11" />
-                <TextBlock x:Name="ModelLabel" HorizontalAlignment="Right" Foreground="{StaticResource Muted}"
+                <TextBlock x:Name="Status" MinHeight="14" Foreground="{DynamicResource Muted}" FontSize="11" />
+                <TextBlock x:Name="ModelLabel" HorizontalAlignment="Right" Foreground="{DynamicResource Muted}"
                            FontSize="11" />
             </Grid>
         </Grid>

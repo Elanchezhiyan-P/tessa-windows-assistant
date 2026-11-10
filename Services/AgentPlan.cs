@@ -9,8 +9,8 @@ public enum StepStatus { Pending, Running, Done, Failed, Skipped }
 
 public sealed class AgentStep(int number, string text)
 {
-    public int Number { get; } = number;
-    public string Text { get; } = text;
+    public int Number { get; set; } = number;
+    public string Text { get; set; } = text;
     public StepStatus Status { get; set; } = StepStatus.Pending;
     public string? Result { get; set; }
 }

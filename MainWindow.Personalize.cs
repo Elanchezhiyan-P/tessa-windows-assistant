@@ -1,3 +1,4 @@
+using System.Windows.Media;
 using System.Speech.Synthesis;
 using System.Windows;
 using System.Windows.Controls;
@@ -26,6 +27,10 @@ public partial class MainWindow
             UpdateVoiceSpeedLabel();
 
             BuildThemeChoices();
+            foreach (var r in new[] { ModeDark, ModeLight, ModeSystem })
+                r.IsChecked = (string)r.Tag == ThemeCatalog.NormalizeMode(_appSettings.ColorMode);
+            foreach (var r in new[] { SizeSmall, SizeNormal, SizeLarge, SizeLarger })
+                r.IsChecked = (string)r.Tag == ThemeCatalog.NormalizeSize(_appSettings.InterfaceSize).ToString();
             AccentBox.Text = _appSettings.AccentColor;
             ThemeHint.Text = "";
 
@@ -34,6 +39,7 @@ public partial class MainWindow
             QuietEndBox.Text = _appSettings.QuietEnd;
             QuietOwnSwitch.IsChecked = _appSettings.QuietOwnReminders;
             HealthSwitch.IsChecked = _appSettings.HealthAlerts;
+            MiniTimerSwitch.IsChecked = _appSettings.MiniTimer;
             HealthNow.Text = HealthReport();
 
             _memoryClearArmed = false;
@@ -66,6 +72,8 @@ public partial class MainWindow
         _appSettings.VoiceRate = (int)VoiceSpeed.Value;
 
         _appSettings.Theme = SelectedThemeKey();
+        _appSettings.ColorMode = SelectedMode();
+        _appSettings.InterfaceSize = SelectedSize();
         _appSettings.AccentColor = ThemeCatalog.TryParseAccent(AccentBox.Text, out var accent)
             ? $"#{accent.R:X2}{accent.G:X2}{accent.B:X2}" : "";
 
@@ -76,14 +84,18 @@ public partial class MainWindow
         _appSettings.QuietEnd = QuietHours.Format(end);
         _appSettings.QuietOwnReminders = QuietOwnSwitch.IsChecked == true;
         _appSettings.HealthAlerts = HealthSwitch.IsChecked == true;
+        _appSettings.MiniTimer = MiniTimerSwitch.IsChecked == true;
+        UpdateMiniTimer();
 
-        ApplyTheme(_appSettings.Theme, _appSettings.AccentColor);
+        ApplyTheme(_appSettings.Theme, _appSettings.AccentColor, _appSettings.ColorMode);
+        ApplySize(_appSettings.InterfaceSize);
     }
 
     /// <summary>Puts back what was saved after the user previewed a theme or voice and then cancelled.</summary>
     private void RevertPersonalization()
     {
         ApplyTheme(_appSettings.Theme, _appSettings.AccentColor);
+        ApplySize(_appSettings.InterfaceSize);
         ApplyVoice();
     }
 
@@ -172,19 +184,61 @@ public partial class MainWindow
     private void PreviewTheme()
     {
         if (_loadingPersonalization) return;
-        ApplyTheme(SelectedThemeKey(), AccentBox.Text);
+        ApplyTheme(SelectedThemeKey(), AccentBox.Text, SelectedMode());
     }
 
-    private void ApplyTheme(string key, string? accent)
+    private string SelectedMode() =>
+        new[] { ModeDark, ModeLight, ModeSystem }.FirstOrDefault(r => r.IsChecked == true)?.Tag as string ?? "dark";
+
+    private int SelectedSize() =>
+        int.TryParse(new[] { SizeSmall, SizeNormal, SizeLarge, SizeLarger }.FirstOrDefault(r => r.IsChecked == true)?.Tag as string, out var n) ? n : 100;
+
+    private void Appearance_Checked(object sender, RoutedEventArgs e)
     {
-        var live = ThemeCatalog.Apply(Application.Current.Resources, ThemeCatalog.Find(key), accent);
+        if (_loadingPersonalization || !IsLoaded) return;
+        PreviewTheme();
+    }
+
+    private void Size_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_loadingPersonalization || !IsLoaded) return;
+        ApplySize(SelectedSize());
+    }
+
+    private void ApplyTheme(string key, string? accent, string? mode = null)
+    {
+        var live = ThemeCatalog.Apply(Application.Current.Resources, ThemeCatalog.Find(key), accent, mode ?? _appSettings.ColorMode);
         Backdrop.Retint(Surface);
         if (ThemeHint is not null) ThemeHint.Text = live ? "" : "The new colours finish applying the next time you start the app.";
     }
 
+    /// <summary>Scales the whole window (text and controls) and widens it to match.</summary>
+    private void ApplySize(int percent)
+    {
+        var scale = ThemeCatalog.NormalizeSize(percent) / 100.0;
+        Surface.LayoutTransform = scale == 1.0 ? Transform.Identity : new ScaleTransform(scale, scale);
+        Width = BaseWidth * scale;
+        MaxHeight = SystemParameters.WorkArea.Height;
+    }
+
+    private const double BaseWidth = 640;
+
     /// <summary>Applies the saved theme before any window is shown.</summary>
     public static void ApplySavedTheme(AppSettings settings) =>
-        ThemeCatalog.Apply(Application.Current.Resources, ThemeCatalog.Find(settings.Theme), settings.AccentColor);
+        ThemeCatalog.Apply(Application.Current.Resources, ThemeCatalog.Find(settings.Theme), settings.AccentColor, settings.ColorMode);
+
+    // With "Match Windows", follow the Windows light/dark setting while the app runs.
+    private void WatchSystemMode()
+    {
+        Microsoft.Win32.SystemEvents.UserPreferenceChanged += (_, e) =>
+        {
+            if (e.Category != Microsoft.Win32.UserPreferenceCategory.General) return;
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (ThemeCatalog.NormalizeMode(_appSettings.ColorMode) == "system") ApplyTheme(_appSettings.Theme, _appSettings.AccentColor);
+            });
+        };
+    }
 
     // ---- Warnings -----------------------------------------------------------------------------------
 

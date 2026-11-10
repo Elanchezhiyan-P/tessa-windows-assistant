@@ -6,7 +6,7 @@ namespace WinCompanion.Services;
 /// <summary>A failure whose message is already fit to show the user.</summary>
 public sealed class LlmException(string message) : Exception(message);
 
-/// <summary>A chat model that can call tools. Implemented for Gemini and for local OpenAI-compatible servers.</summary>
+/// <summary>A chat model that can call tools: Gemini, Claude, an OpenAI-compatible cloud service, or a local server.</summary>
 public interface ILlm
 {
     /// <summary>Raised just before a tool runs, with a short description.</summary>
@@ -28,7 +28,13 @@ public interface ILlm
 
     void ClearHistory();
 
-    /// <summary>True when requests leave this PC (Gemini); false for a model running locally.</summary>
+    /// <summary>
+    /// Replaces the model's memory of the conversation with these earlier messages ("user" or "assistant" and their text), so a chat
+    /// that is opened again carries on where it left off. Models that cannot do this ignore it.
+    /// </summary>
+    void SeedHistory(IReadOnlyList<(string Role, string Text)> messages) { }
+
+    /// <summary>True when requests leave this PC (Gemini, Claude, an OpenAI-compatible service); false for a model running locally.</summary>
     bool IsCloud { get; }
 }
 
@@ -38,7 +44,7 @@ public abstract class LlmClientBase : ILlm
     protected const int MaxToolRounds = 6;
     protected const int MaxHistoryEntries = 40;
 
-    private static readonly string[] ContextFiles = ["context.json", "context.gemini.json", "context.local.json"];
+    private static readonly string[] ContextFiles = ["context.json", "context.gemini.json", "context.local.json", "context.claude.json", "context.openai.json"];
 
     private readonly ToolRegistry _tools;
     private readonly ToolExecutor _executor;
@@ -67,6 +73,7 @@ public abstract class LlmClientBase : ILlm
     public abstract Task<string> GenerateAsync(string instruction, string? text = null, byte[]? png = null);
     public abstract void ClearHistory();
     public abstract bool IsCloud { get; }
+    public virtual void SeedHistory(IReadOnlyList<(string Role, string Text)> messages) { }
 
     /// <summary>Remove every saved conversation context (used by "New chat").</summary>
     public static void DeleteSavedContexts()

@@ -184,6 +184,19 @@ public sealed class GeminiClient : LlmClientBase
         SaveHistory();
     }
 
+    public override void SeedHistory(IReadOnlyList<(string Role, string Text)> messages)
+    {
+        _history.Clear();
+        foreach (var (role, text) in messages)
+            _history.Add(new JsonObject
+            {
+                ["role"] = role == "assistant" ? "model" : "user",
+                ["parts"] = new JsonArray(new JsonObject { ["text"] = text })
+            });
+        TrimHistory();
+        SaveHistory();
+    }
+
     private void TrimHistory()
     {
         while (_history.Count > MaxHistoryEntries) _history.RemoveAt(0);

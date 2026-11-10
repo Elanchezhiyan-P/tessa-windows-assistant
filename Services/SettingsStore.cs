@@ -9,17 +9,29 @@ namespace WinCompanion.Services;
 /// </summary>
 public sealed class SettingsStore
 {
-    private static readonly string KeyPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WinCompanion", "apikey.bin");
+    private static readonly string Folder = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WinCompanion");
 
-    public string? LoadApiKey()
+    /// <summary>"gemini" (the original file name, kept so saved keys still work), "claude" or "openai".</summary>
+    private static string KeyPath(string provider) =>
+        Path.Combine(Folder, provider == "gemini" ? "apikey.bin" : $"apikey.{provider}.bin");
+
+    private static string EnvironmentVariable(string provider) => provider switch
     {
-        var env = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+        "claude" => "ANTHROPIC_API_KEY",
+        "openai" => "OPENAI_API_KEY",
+        _ => "GEMINI_API_KEY"
+    };
+
+    public string? LoadApiKey(string provider = "gemini")
+    {
+        var env = Environment.GetEnvironmentVariable(EnvironmentVariable(provider));
         if (!string.IsNullOrWhiteSpace(env)) return env;
-        if (!File.Exists(KeyPath)) return null;
+        var path = KeyPath(provider);
+        if (!File.Exists(path)) return null;
         try
         {
-            var bytes = ProtectedData.Unprotect(File.ReadAllBytes(KeyPath), null, DataProtectionScope.CurrentUser);
+            var bytes = ProtectedData.Unprotect(File.ReadAllBytes(path), null, DataProtectionScope.CurrentUser);
             return Encoding.UTF8.GetString(bytes);
         }
         catch (CryptographicException) { return null; }
@@ -32,25 +44,26 @@ public sealed class SettingsStore
     public static string Mask(string key) => key.Length < 12 ? "********" : $"{key[..4]}**{key[^4..]}";
 
     /// <summary>Where the active key comes from and how to show it, or null if there is none.</summary>
-    public (string Masked, string Source)? DescribeKey()
+    public (string Masked, string Source)? DescribeKey(string provider = "gemini")
     {
-        var key = LoadApiKey();
+        var key = LoadApiKey(provider);
         if (string.IsNullOrWhiteSpace(key)) return null;
-        var fromEnvironment = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GEMINI_API_KEY"));
-        return (Mask(key), fromEnvironment ? "GEMINI_API_KEY environment variable" : "encrypted on this PC");
+        var variable = EnvironmentVariable(provider);
+        var fromEnvironment = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(variable));
+        return (Mask(key), fromEnvironment ? $"{variable} environment variable" : "encrypted on this PC");
     }
 
-    /// <summary>Deletes the saved key. A GEMINI_API_KEY environment variable is outside the app's control and is left alone.</summary>
-    public void RemoveApiKey()
+    /// <summary>Deletes the saved key. An environment variable is outside the app's control and is left alone.</summary>
+    public void RemoveApiKey(string provider = "gemini")
     {
-        try { if (File.Exists(KeyPath)) File.Delete(KeyPath); }
+        try { if (File.Exists(KeyPath(provider))) File.Delete(KeyPath(provider)); }
         catch (IOException) { }
     }
 
-    public void SaveApiKey(string key)
+    public void SaveApiKey(string key, string provider = "gemini")
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(KeyPath)!);
+        Directory.CreateDirectory(Folder);
         var bytes = ProtectedData.Protect(Encoding.UTF8.GetBytes(key), null, DataProtectionScope.CurrentUser);
-        File.WriteAllBytes(KeyPath, bytes);
+        File.WriteAllBytes(KeyPath(provider), bytes);
     }
 }

@@ -112,6 +112,18 @@ internal static class Database
                 text    TEXT NOT NULL
             );
             CREATE INDEX IF NOT EXISTS index_chunks_file ON index_chunks(file_id);
+            CREATE TABLE IF NOT EXISTS agent_plans (
+                name    TEXT PRIMARY KEY COLLATE NOCASE,
+                goal    TEXT NOT NULL,
+                steps   TEXT NOT NULL,
+                created TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS conversations (
+                id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                title   TEXT NOT NULL,
+                created TEXT NOT NULL,
+                updated TEXT NOT NULL
+            );
             CREATE VIRTUAL TABLE IF NOT EXISTS index_fts USING fts5(text, content='index_chunks', content_rowid='id');
             CREATE TRIGGER IF NOT EXISTS index_chunks_ai AFTER INSERT ON index_chunks BEGIN
                 INSERT INTO index_fts(rowid, text) VALUES (new.id, new.text);
@@ -120,6 +132,27 @@ internal static class Database
                 INSERT INTO index_fts(index_fts, rowid, text) VALUES ('delete', old.id, old.text);
             END;
             """);
+
+        // Named chats and pinned messages (added in 2.2): existing messages become the first chat.
+        AddColumnIfMissing(connection, "messages", "conversation", "INTEGER NOT NULL DEFAULT 1");
+        AddColumnIfMissing(connection, "messages", "pinned", "INTEGER NOT NULL DEFAULT 0");
+        using (var first = connection.CreateCommand())
+        {
+            first.CommandText = "INSERT OR IGNORE INTO conversations(id, title, created, updated) VALUES (1, $title, $now, $now)";
+            first.Parameters.AddWithValue("$title", DefaultChatTitle);
+            first.Parameters.AddWithValue("$now", ToText(DateTime.Now));
+            first.ExecuteNonQuery();
+        }
+        Execute(connection, "CREATE INDEX IF NOT EXISTS messages_conversation ON messages(conversation, id);");
+    }
+
+    public const string DefaultChatTitle = "New chat";
+
+    private static void AddColumnIfMissing(SqliteConnection connection, string table, string column, string definition)
+    {
+        using var check = connection.CreateCommand();
+        check.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = '{column}'";
+        if (Convert.ToInt64(check.ExecuteScalar()) == 0) Execute(connection, $"ALTER TABLE {table} ADD COLUMN {column} {definition};");
     }
 
     public static void Execute(SqliteConnection connection, string sql)

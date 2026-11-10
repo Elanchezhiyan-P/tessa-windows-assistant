@@ -31,7 +31,7 @@ public partial class MainWindow
     private const string AgentExamples = "Try something like /agent organise my Downloads and tell me what's biggest.";
 
     /// <summary>Plans the goal, waits for the user's approval, then runs the steps. Every step is a normal request to the assistant.</summary>
-    private async Task RunAgentAsync(string goal)
+    private async Task RunAgentAsync(string goal, SavedPlan? saved = null)
     {
         if (_agentRunning)
         {
@@ -39,37 +39,62 @@ public partial class MainWindow
             return;
         }
 
-        var client = EnsureClient();
-        if (client is null) return;
+        // A saved plan needs no planning, so it can be shown (and its steps changed) before any model is needed.
+        ILlm? client = null;
+        if (saved is null)
+        {
+            client = EnsureClient();
+            if (client is null) return;
+        }
 
         _agentRunning = true;
         _agentAbandoned = false;
-        AddMessage("user", $"/agent {goal}");
+        AddMessage("user", saved is null ? $"/agent {goal}" : $"/plan run {saved.Name}");
         try
         {
-            // 1. Ask for a plan. Only the goal is sent, no files or screen.
-            IReadOnlyList<string> texts;
-            SetBusy(true);
-            try { texts = AgentPlanner.Parse(await client.GenerateAsync(AgentPlanner.Instruction(_tools.Names()), goal)); }
-            catch (LlmException ex)
+            List<AgentStep> steps;
+            if (saved is null)
             {
-                AgentSay("error", ex.Message);
-                return;
+                // 1. Ask for a plan. Only the goal is sent, no files or screen.
+                IReadOnlyList<string> texts;
+                SetBusy(true);
+                try { texts = AgentPlanner.Parse(await client!.GenerateAsync(AgentPlanner.Instruction(_tools.Names()), goal)); }
+                catch (LlmException ex)
+                {
+                    AgentSay("error", ex.Message);
+                    return;
+                }
+                finally { SetBusy(false); }
+
+                // "New chat" while the plan was being written: the chat it was for is gone, so drop the plan instead of showing it.
+                if (_agentAbandoned) return;
+
+                if (texts.Count == 0)
+                {
+                    AddMessage("assistant", "I couldn't turn that into a plan. Describe the goal with what to do and where. " + AgentExamples);
+                    return;
+                }
+                steps = texts.Select((text, i) => new AgentStep(i + 1, text)).ToList();
             }
-            finally { SetBusy(false); }
-
-            // "New chat" while the plan was being written: the chat it was for is gone, so drop the plan instead of showing it.
-            if (_agentAbandoned) return;
-
-            if (texts.Count == 0)
+            else
             {
-                AddMessage("assistant", "I couldn't turn that into a plan. Describe the goal with what to do and where. " + AgentExamples);
-                return;
+                steps = saved.Steps.Select((text, i) => new AgentStep(i + 1, text)).ToList();
             }
 
-            // 2. Show it and wait for a yes.
-            var steps = texts.Select((text, i) => new AgentStep(i + 1, text)).ToList();
-            var card = new AgentPlanCard(goal, steps);
+            // 2. Show it (steps can be reworded, moved, removed or added, and the plan saved) and wait for a yes.
+            var savedName = saved?.Name;
+            var card = new AgentPlanCard(goal, steps)
+            {
+                SavePlan = texts =>
+                {
+                    savedName ??= PlanStore.UniqueName(goal, _plans.List().Select(p => p.Name));
+                    var reply = _plans.Save(savedName, goal, texts);
+                    return reply.StartsWith("Saved", StringComparison.Ordinal)
+                        ? $"{reply} Run it any time with /plan run {savedName}, or put it on a schedule with /plan schedule {savedName} every weekday at 9am."
+                        : reply;
+                }
+            };
+            _lastPlan = (goal, card);
             _agentCard = card;
             Messages.Children.Add(card.Root);
             _historyOpen = true;
@@ -80,6 +105,14 @@ public partial class MainWindow
             {
                 card.ShowFinished("Cancelled. Nothing was done.");
                 AgentSay("assistant", "Plan cancelled. Nothing was done.");
+                return;
+            }
+
+            // A saved or scheduled plan needs a model only now that it is approved.
+            client ??= EnsureClient();
+            if (client is null)
+            {
+                card.ShowFinished("Not run: there is no model set up yet.");
                 return;
             }
 

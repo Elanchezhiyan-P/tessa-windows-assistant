@@ -2,12 +2,12 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Quick tour" Width="500" SizeToContent="Height" ResizeMode="NoResize"
-        WindowStartupLocation="CenterScreen" Topmost="True" Background="#FF1E1F26"
+        WindowStartupLocation="CenterScreen" Topmost="True" Background="{DynamicResource WindowBack}"
         FontFamily="{StaticResource UiFont}" UseLayoutRounding="True">
     <StackPanel Margin="30,26,30,26">
-        <TextBlock x:Name="StepCount" Foreground="{StaticResource Muted}" FontSize="12" />
-        <TextBlock x:Name="StepTitle" Foreground="{StaticResource Fg}" FontSize="21" FontWeight="SemiBold" Margin="0,6,0,0" />
-        <TextBlock x:Name="StepIntro" Foreground="{StaticResource Muted}" FontSize="12.5" TextWrapping="Wrap" Margin="0,6,0,14" />
+        <TextBlock x:Name="StepCount" Foreground="{DynamicResource Muted}" FontSize="12" />
+        <TextBlock x:Name="StepTitle" Foreground="{DynamicResource Fg}" FontSize="21" FontWeight="SemiBold" Margin="0,6,0,0" />
+        <TextBlock x:Name="StepIntro" Foreground="{DynamicResource Muted}" FontSize="12.5" TextWrapping="Wrap" Margin="0,6,0,14" />
         <StackPanel x:Name="Rows" />
 
         <Grid Margin="0,24,0,0">

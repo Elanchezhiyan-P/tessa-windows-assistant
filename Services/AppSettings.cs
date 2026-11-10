@@ -7,8 +7,18 @@ namespace WinCompanion.Services;
 /// <summary>Non-secret preferences: which model backend to use and where the local server is.</summary>
 public sealed class AppSettings
 {
-    /// <summary>"gemini" or "local".</summary>
+    public static readonly string[] Providers = ["gemini", "local", "openai", "claude"];
+
+    /// <summary>"gemini", "local", "openai" (any OpenAI-compatible service) or "claude".</summary>
     public string Provider { get; set; } = "gemini";
+    public const string DefaultClaudeModel = "claude-opus-5-5";
+
+    /// <summary>Address of an OpenAI-compatible cloud service (OpenAI, OpenRouter, Groq, Together...), used when the provider is "openai".</summary>
+    public string OpenAiBaseUrl { get; set; } = "https://api.openai.com/v1";
+    public string OpenAiModel { get; set; } = "gpt-4o-mini";
+    /// <summary>The Claude model to use when the provider is "claude".</summary>
+    public string ClaudeModel { get; set; } = DefaultClaudeModel;
+
     public string LocalBaseUrl { get; set; } = "http://localhost:11434/v1"; // Ollama's default
     public string LocalModel { get; set; } = "qwen2.5:3b";
     /// <summary>Optional separate model for screenshots (e.g. qwen2.5vl). Empty means use the main model.</summary>
@@ -47,6 +57,10 @@ public sealed class AppSettings
 
     /// <summary>Key of the window colour theme (see ThemeCatalog).</summary>
     public string Theme { get; set; } = "midnight";
+    /// <summary>"dark", "light" or "system" (follow the Windows app mode).</summary>
+    public string ColorMode { get; set; } = "dark";
+    /// <summary>How large the window and its text are, in percent: 90, 100, 115 or 130.</summary>
+    public int InterfaceSize { get; set; } = 100;
     /// <summary>A colour such as #FF8800 that replaces the theme's accent. Empty uses the theme's own.</summary>
     public string AccentColor { get; set; } = "";
 
@@ -56,6 +70,11 @@ public sealed class AppSettings
     public string QuietEnd { get; set; } = "07:00";
     /// <summary>Also keep reminders the user set themselves quiet during quiet hours (they still wait in the chat). Off, so an alarm is never missed.</summary>
     public bool QuietOwnReminders { get; set; }
+
+    /// <summary>Show a small floating countdown for a focus session or a reminder that is close.</summary>
+    public bool MiniTimer { get; set; } = true;
+    public int? MiniTimerLeft { get; set; }
+    public int? MiniTimerTop { get; set; }
 
     /// <summary>Warn when a drive is nearly full or the battery is low.</summary>
     public bool HealthAlerts { get; set; } = true;
@@ -85,6 +104,34 @@ public sealed class AppSettings
     public bool SetupDone { get; set; }
 
     [JsonIgnore] public bool UseLocal => Provider == "local";
+    [JsonIgnore] public bool UsesGemini => Provider == "gemini";
+
+    /// <summary>Who receives a request, for "Send this to ...?" questions and the privacy text. Empty for a local model.</summary>
+    [JsonIgnore] public string CloudLabel => Provider switch
+    {
+        "claude" => "Anthropic's Claude",
+        "openai" => Uri.TryCreate(OpenAiBaseUrl, UriKind.Absolute, out var uri) ? uri.Host : "the OpenAI-compatible service",
+        "local" => "",
+        _ => "Google's Gemini"
+    };
+
+    /// <summary>A short description of the model in use, for "which model are you?" and diagnostics.</summary>
+    [JsonIgnore] public string BrainDescription => Provider switch
+    {
+        "local" => $"a local model ({LocalModel})",
+        "claude" => $"Anthropic Claude ({ClaudeModel})",
+        "openai" => $"an OpenAI-compatible service ({OpenAiModel})",
+        _ => "Google Gemini"
+    };
+
+    /// <summary>The short name shown in the header.</summary>
+    [JsonIgnore] public string ModelBadge => Provider switch
+    {
+        "local" => $"Local · {LocalModel}",
+        "claude" => "Claude",
+        "openai" => $"{OpenAiModel}",
+        _ => "Gemini"
+    };
     [JsonIgnore] public string WakePhrase => "hey " + AssistantName.Trim().ToLowerInvariant();
     [JsonIgnore] public string WakeLabel => "Hey " + AssistantName.Trim();
     /// <summary>How the assistant addresses the user: the short name, else the name, else nothing.</summary>

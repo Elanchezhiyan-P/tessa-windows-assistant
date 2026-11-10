@@ -70,7 +70,7 @@ public partial class MainWindow
     }
 
     private string AboutText() => AboutTessa.About(_appSettings.AssistantName,
-        _appSettings.UseLocal ? $"a local model ({_appSettings.LocalModel})" : "Google Gemini");
+        _appSettings.BrainDescription);
 
     private void ClearClipboard_Click(object sender, RoutedEventArgs e) =>
         SettingsNote.Text = $"Cleared {ClipboardStore.Clear()} item(s) from the clipboard history.";

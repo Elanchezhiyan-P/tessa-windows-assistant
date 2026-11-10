@@ -51,6 +51,10 @@ public partial class MainWindow
                 return _reminders.Describe();
             case "clipboard":
                 return ClipboardCommand(args);
+            case "plans":
+                return PlanListText();
+            case "plan":
+                return await PlanCommandAsync(args);
             case "agent":
                 if (args.Length == 0) return "Tell me the goal, for example /agent organise my Downloads and tell me what's biggest.";
                 await RunAgentAsync(args);
@@ -86,6 +90,14 @@ public partial class MainWindow
                 return VoiceCommand(args);
             case "theme":
                 return ThemeCommand(args);
+            case "size":
+                return SizeCommand(args);
+            case "timer":
+                return TimerCommand(args);
+            case "backup":
+                return BackupNow(args.Length > 0 ? args.Trim().Trim('"') : null);
+            case "restore":
+                return await RestoreAsync(args);
             case "quiet":
                 return QuietCommand(args);
             case "health":
@@ -106,15 +118,26 @@ public partial class MainWindow
                 else CancelSettings_Click(this, new RoutedEventArgs());
                 return "";
             case "clear":
-                NewChat_Click(this, new RoutedEventArgs());
+                ClearChat();
                 return "";
             case "new":
-                var saved = _chat.Entries.Count > 0 ? ChatExport.Export(null, _appSettings.AssistantName) : null;
-                NewChat_Click(this, new RoutedEventArgs());
-                if (saved is not null) AddMessage("assistant", $"Started a new chat. {saved}");
+                StartNewChat();
                 return "";
+            case "chats":
+                if (args.Equals("delete all", StringComparison.OrdinalIgnoreCase)) return await DeleteAllChatsAsync();
+                OpenChatList(pins: false);
+                return "";
+            case "chat":
+                return OpenChatByName(args);
+            case "rename":
+                return RenameActiveChat(args);
+            case "pins":
+                OpenChatList(pins: true);
+                return "";
+            case "pin":
+                return PinLastReply();
             case "export":
-                return ChatExport.Export(args, _appSettings.AssistantName);
+                return ChatExport.Export(args, _appSettings.AssistantName, _chat.ActiveId, _chat.ActiveTitle);
             case "copy":
                 var last = _chat.Entries.LastOrDefault(e => e.Role == "assistant");
                 if (last is null) return "There is no reply to copy yet.";
@@ -190,22 +213,21 @@ public partial class MainWindow
 
     private string ModelCommand(string args)
     {
-        if (args.Length == 0)
-            return _appSettings.UseLocal
-                ? $"Using the local model {_appSettings.LocalModel}. Switch with /model gemini."
-                : "Using Gemini. Switch with /model local.";
+        if (args.Length == 0) return ModelSwitch.Describe(_appSettings);
 
-        var local = args.Equals("local", StringComparison.OrdinalIgnoreCase);
-        if (!local && !args.Equals("gemini", StringComparison.OrdinalIgnoreCase)) return "Use /model gemini or /model local.";
-        if (local == _appSettings.UseLocal) return "Already using that model.";
-        if (!local && string.IsNullOrEmpty(_settings.LoadApiKey())) return "Add a Gemini API key in /settings first.";
+        var (provider, model) = ModelSwitch.Parse(args);
+        if (provider is null) return ModelSwitch.Usage;
+        if (provider is "gemini" or "claude" or "openai" && string.IsNullOrEmpty(_settings.LoadApiKey(provider)) &&
+            !(provider == "openai" && Uri.TryCreate(_appSettings.OpenAiBaseUrl, UriKind.Absolute, out var service) && service.IsLoopback))
+            return $"Add a {(provider == "gemini" ? "Gemini" : provider == "claude" ? "Claude" : "OpenAI-compatible service")} API key in /settings first.";
 
-        _appSettings.Provider = local ? "local" : "gemini";
+        var (reply, changed) = ModelSwitch.Apply(_appSettings, provider, model);
+        if (!changed) return reply;
         _appSettings.Save();
         _llm = null; // rebuilt with the new provider on the next request
         _ctx.Llm = null;
         RefreshModelLabel();
-        return local ? $"Switched to the local model {_appSettings.LocalModel}." : "Switched to Gemini.";
+        return reply;
     }
 
     private string VoiceCommand(string args)
@@ -276,13 +298,18 @@ public partial class MainWindow
     private string ThemeCommand(string args)
     {
         if (args.Length == 0)
-            return $"Theme: {ThemeCatalog.Find(_appSettings.Theme).Name}{(_appSettings.AccentColor.Length > 0 ? $" with accent {_appSettings.AccentColor}" : "")}.\n" +
-                   $"Themes: {string.Join(", ", ThemeCatalog.All.Select(t => t.Key))}. Use /theme <name>, /theme #FF8800 for your own accent, or /theme reset.";
+            return $"Theme: {ThemeCatalog.Find(_appSettings.Theme).Name}, {ThemeCatalog.NormalizeMode(_appSettings.ColorMode)} look{(_appSettings.AccentColor.Length > 0 ? $", accent {_appSettings.AccentColor}" : "")}.\n" +
+                   $"Use /theme dark, /theme light or /theme system for the look. Themes: {string.Join(", ", ThemeCatalog.All.Select(t => t.Key))}. Use /theme <name>, /theme #FF8800 for your own accent, or /theme reset.";
 
-        if (args.Equals("reset", StringComparison.OrdinalIgnoreCase))
+        if (ThemeCatalog.Modes.Contains(args, StringComparer.OrdinalIgnoreCase))
+        {
+            _appSettings.ColorMode = ThemeCatalog.NormalizeMode(args);
+        }
+        else if (args.Equals("reset", StringComparison.OrdinalIgnoreCase))
         {
             _appSettings.Theme = "midnight";
             _appSettings.AccentColor = "";
+            _appSettings.ColorMode = "dark";
         }
         else if (ThemeCatalog.TryParseAccent(args, out var accent))
         {
@@ -298,6 +325,19 @@ public partial class MainWindow
         _appSettings.Save();
         ApplyTheme(_appSettings.Theme, _appSettings.AccentColor);
         return $"Theme: {ThemeCatalog.Find(_appSettings.Theme).Name}{(_appSettings.AccentColor.Length > 0 ? $" with accent {_appSettings.AccentColor}" : "")}.";
+    }
+
+    private string SizeCommand(string args)
+    {
+        var names = new Dictionary<string, int> { ["small"] = 90, ["normal"] = 100, ["large"] = 115, ["larger"] = 130 };
+        if (args.Length == 0)
+            return $"Size: {names.First(n => n.Value == ThemeCatalog.NormalizeSize(_appSettings.InterfaceSize)).Key}. Use /size small, normal, large or larger.";
+        if (!names.TryGetValue(args.Trim().ToLowerInvariant(), out var percent))
+            return "Try /size small, normal, large or larger.";
+        _appSettings.InterfaceSize = percent;
+        _appSettings.Save();
+        ApplySize(percent);
+        return $"Size: {args.Trim().ToLowerInvariant()}.";
     }
 
     private string QuietCommand(string args)

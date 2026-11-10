@@ -47,11 +47,16 @@ public partial class MainWindow : Window
         _pets = new PetController(_appSettings);
         Closing += OnClosing;
 
+        ApplySize(_appSettings.InterfaceSize);
+        WatchSystemMode();
         ApplyIdentity();
         UpdateMuteButton();
 
+        InitChats();
+        StartMiniTimer();
         foreach (var entry in _chat.Entries) Messages.Children.Add(ChatBubbles.Create(entry, animate: false));
         UpdateOlderButton();
+        RefreshChatTitle();
         RefreshLayout();
         RefreshChips();
         RefreshModelLabel();
@@ -69,7 +74,7 @@ public partial class MainWindow : Window
             SetListening(true);
             Status.Text = "";
         });
-        _voice.GeminiSpeechAvailable = () => _appSettings.SpeechViaGemini && !_appSettings.UseLocal
+        _voice.GeminiSpeechAvailable = () => _appSettings.SpeechViaGemini && _appSettings.UsesGemini
                                              && !string.IsNullOrWhiteSpace(_settings.LoadApiKey());
         _voice.GeminiTranscribe = async wav => await GeminiSpeech.TranscribeAsync(_settings.LoadApiKey()!, wav, _appSettings.SpeechLanguage);
         _voice.Notice += message => Dispatcher.Invoke(() =>
@@ -152,8 +157,15 @@ public partial class MainWindow : Window
     {
         ShowAndFocus();
 
-        ProviderGemini.IsChecked = !_appSettings.UseLocal;
-        ProviderLocal.IsChecked = _appSettings.UseLocal;
+        ProviderGemini.IsChecked = _appSettings.Provider == "gemini";
+        ProviderClaude.IsChecked = _appSettings.Provider == "claude";
+        ProviderOpenAi.IsChecked = _appSettings.Provider == "openai";
+        ProviderLocal.IsChecked = _appSettings.Provider == "local";
+        ClaudeModelBox.Text = _appSettings.ClaudeModel;
+        OpenAiUrl.Text = _appSettings.OpenAiBaseUrl;
+        OpenAiModelBox.Text = _appSettings.OpenAiModel;
+        ClaudeKeyBox.Clear();
+        OpenAiKeyBox.Clear();
         LocalUrl.Text = _appSettings.LocalBaseUrl;
         LocalModel.Text = _appSettings.LocalModel;
         LocalVision.Text = _appSettings.LocalVisionModel;
@@ -176,7 +188,7 @@ public partial class MainWindow : Window
         BriefingCityBox.Text = _appSettings.BriefingCity;
         BriefingTopicsBox.Text = _appSettings.BriefingTopics;
         AboutName.Text = _appSettings.AssistantName;
-        AboutVersion.Text = "Version " + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "2.1.0");
+        AboutVersion.Text = "Version " + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "2.2.0");
         ProfileName.Text = _appSettings.UserName;
         ProfileNick.Text = _appSettings.UserNickname;
         AssistantNameBox.Text = _appSettings.AssistantName;
@@ -253,7 +265,7 @@ public partial class MainWindow : Window
     }
 
     private void RefreshModelLabel() =>
-        ModelLabel.Text = _appSettings.UseLocal ? $"Local · {_appSettings.LocalModel}" : "Gemini";
+        ModelLabel.Text = _appSettings.ModelBadge;
 
     // ---- Settings -----------------------------------------------------------------------------------
 
@@ -285,10 +297,21 @@ public partial class MainWindow : Window
 
     private void UpdateProviderGroups()
     {
-        if (GeminiGroup is null || LocalGroup is null) return; // fires during InitializeComponent
+        if (GeminiGroup is null || LocalGroup is null || ClaudeGroup is null || OpenAiGroup is null) return; // fires during InitializeComponent
         var local = ProviderLocal.IsChecked == true;
-        GeminiGroup.Visibility = local ? Visibility.Collapsed : Visibility.Visible;
+        GeminiGroup.Visibility = ProviderGemini.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        ClaudeGroup.Visibility = ProviderClaude.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        OpenAiGroup.Visibility = ProviderOpenAi.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         LocalGroup.Visibility = local ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void ClaudeModelChip_Click(object sender, RoutedEventArgs e) => ClaudeModelBox.Text = (string)((FrameworkElement)sender).Tag;
+
+    private void OpenAiPreset_Click(object sender, RoutedEventArgs e)
+    {
+        var parts = ((string)((FrameworkElement)sender).Tag).Split('|');
+        OpenAiUrl.Text = parts[0];
+        OpenAiModelBox.Text = parts[1];
     }
 
     private void PresetOllama_Click(object sender, RoutedEventArgs e) => LocalUrl.Text = "http://localhost:11434/v1";
@@ -331,9 +354,39 @@ public partial class MainWindow : Window
     private void SaveSettings_Click(object sender, RoutedEventArgs e)
     {
         if (!PersonalizationValid()) return;
-        var local = ProviderLocal.IsChecked == true;
+        var provider = ProviderClaude.IsChecked == true ? "claude"
+            : ProviderOpenAi.IsChecked == true ? "openai"
+            : ProviderLocal.IsChecked == true ? "local" : "gemini";
+        var local = provider == "local";
 
-        if (local)
+        if (provider == "claude")
+        {
+            if (ClaudeKeyBox.Password.Length > 0) _settings.SaveApiKey(ClaudeKeyBox.Password.Trim(), "claude");
+            if (string.IsNullOrEmpty(_settings.LoadApiKey("claude")))
+            {
+                ClaudeKeyState.Text = "Paste an API key to use Claude, or choose another model.";
+                return;
+            }
+            _appSettings.ClaudeModel = ClaudeModelBox.Text.Trim().Length > 0 ? ClaudeModelBox.Text.Trim() : AppSettings.DefaultClaudeModel;
+        }
+        else if (provider == "openai")
+        {
+            if (!Uri.TryCreate(OpenAiUrl.Text.Trim(), UriKind.Absolute, out var service) || service.Scheme != Uri.UriSchemeHttps && !service.IsLoopback
+                || string.IsNullOrWhiteSpace(OpenAiModelBox.Text))
+            {
+                OpenAiKeyState.Text = "Enter the service address (it must start with https://) and a model name.";
+                return;
+            }
+            if (OpenAiKeyBox.Password.Length > 0) _settings.SaveApiKey(OpenAiKeyBox.Password.Trim(), "openai");
+            if (string.IsNullOrEmpty(_settings.LoadApiKey("openai")) && !service.IsLoopback)
+            {
+                OpenAiKeyState.Text = "Paste an API key to use this service, or choose another model.";
+                return;
+            }
+            _appSettings.OpenAiBaseUrl = OpenAiUrl.Text.Trim();
+            _appSettings.OpenAiModel = OpenAiModelBox.Text.Trim();
+        }
+        else if (local)
         {
             if (!Uri.TryCreate(LocalUrl.Text.Trim(), UriKind.Absolute, out _) || string.IsNullOrWhiteSpace(LocalModel.Text))
             {
@@ -344,7 +397,7 @@ public partial class MainWindow : Window
             _appSettings.LocalModel = LocalModel.Text.Trim();
             _appSettings.LocalVisionModel = LocalVision.Text.Trim();
         }
-        else
+        else // gemini
         {
             if (GeminiKeyBox.Password.Length > 0) _settings.SaveApiKey(GeminiKeyBox.Password.Trim());
             if (string.IsNullOrEmpty(_settings.LoadApiKey()))
@@ -359,7 +412,7 @@ public partial class MainWindow : Window
         _appSettings.Pet = SelectedPetId();
         _appSettings.AskBeforeSendingToCloud = PrivacyAsk.IsChecked == true;
         _appSettings.ShareActiveApp = false;
-        _appSettings.Provider = local ? "local" : "gemini";
+        _appSettings.Provider = provider;
         _appSettings.SetProfile(ProfileName.Text, ProfileNick.Text, AssistantNameBox.Text, VoiceMaleSeg.IsChecked == true);
         _appSettings.VoiceMuted = MuteSwitch.IsChecked == true;
         _appSettings.SpeechLanguage = SpeechLangBox.Text.Trim();
@@ -411,9 +464,9 @@ public partial class MainWindow : Window
 
     private void AddMessage(string role, string text, bool animate = true)
     {
-        var entry = new ChatEntry(role, text, DateTime.Now);
-        _chat.Append(entry);
+        var entry = _chat.Append(new ChatEntry(role, text, DateTime.Now));
         Messages.Children.Add(ChatBubbles.Create(entry, animate));
+        if (role == "user") RefreshChatTitle();
         _historyOpen = true;
         _settingsOpen = false;
         RefreshLayout();
@@ -452,33 +505,50 @@ public partial class MainWindow : Window
     private void NewChat_Click(object sender, RoutedEventArgs e)
     {
         _speaker.SpeakAsyncCancelAll();
-        StopAgent();
-        _llm?.ClearHistory();
-        ClearSelection();
-        LlmClientBase.DeleteSavedContexts();
-        _chat.Clear();
-        Messages.Children.Clear();
-        _olderButton = null;
-        RefreshLayout();
-        Input.Focus();
+        StartNewChat();
     }
 
     // Builds the model client for the chosen provider, or opens Settings if it isn't usable yet.
     private ILlm? EnsureClient()
     {
-        if (_llm is not null) return _llm;
+        if (_llm is not null)
+        {
+            SeedIfNeeded(_llm);
+            return _llm;
+        }
 
         ILlm client;
         if (_appSettings.UseLocal)
         {
             client = new LocalLlmClient(_appSettings, _tools, ConfirmAsync, _log, _memory, SharedActiveApp);
         }
+        else if (_appSettings.Provider == "claude")
+        {
+            var key = _settings.LoadApiKey("claude");
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                OpenSettings("Add your Claude API key, or choose another model.");
+                return null;
+            }
+            client = new ClaudeClient(key, _appSettings, _tools, ConfirmAsync, _log, _memory, SharedActiveApp);
+        }
+        else if (_appSettings.Provider == "openai")
+        {
+            var key = _settings.LoadApiKey("openai");
+            var loopback = Uri.TryCreate(_appSettings.OpenAiBaseUrl, UriKind.Absolute, out var service) && service.IsLoopback;
+            if (string.IsNullOrWhiteSpace(key) && !loopback)
+            {
+                OpenSettings("Add the API key for your OpenAI-compatible service, or choose another model.");
+                return null;
+            }
+            client = new LocalLlmClient(LocalLlmClient.ForOpenAi(_appSettings, key ?? ""), _tools, ConfirmAsync, _log, _memory, SharedActiveApp);
+        }
         else
         {
             var key = _settings.LoadApiKey();
             if (string.IsNullOrWhiteSpace(key))
             {
-                OpenSettings("Add your Gemini API key, or switch to a local Qwen model.");
+                OpenSettings("Add your Gemini API key, or choose another model.");
                 return null;
             }
             client = new GeminiClient(key, _tools, ConfirmAsync, _log, _memory, SharedActiveApp);
@@ -488,6 +558,7 @@ public partial class MainWindow : Window
         client.ToolFinished += result => Dispatcher.Invoke(() => AddMessage("tool", result));
         _ctx.Llm = client;
         _llm = client;
+        SeedIfNeeded(client);
         return client;
     }
 
@@ -682,6 +753,11 @@ public partial class MainWindow : Window
     private void OnReminderDue(Reminder reminder, bool missed)
     {
         if (HoldForFocus(reminder)) return;
+        if (PlanSchedule.NameOf(reminder.Message) is { } planName)
+        {
+            OnScheduledPlanDue(planName, reminder, missed);
+            return;
+        }
 
         // In quiet hours nudges are skipped (they come round again anyway), and the user's own reminders are silent only if they chose that.
         var quiet = QuietNow;
@@ -769,11 +845,37 @@ public partial class MainWindow : Window
 
     private void ShowKeyState()
     {
+        ShowKeyState("claude", ClaudeKeyState, RemoveClaudeKeyButton);
+        ShowKeyState("openai", OpenAiKeyState, RemoveOpenAiKeyButton);
         GeminiKeyState.Text = _settings.DescribeKey() is { } saved
             ? $"Saved key: {saved.Masked}  ({saved.Source}). Leave blank to keep it, or paste a new key and Save to replace it."
             : "No key saved yet.";
         RemoveKeyButton.IsEnabled = _settings.DescribeKey() is { Source: "encrypted on this PC" };
     }
+
+    private void ShowKeyState(string provider, TextBlock state, Button remove)
+    {
+        state.Text = _settings.DescribeKey(provider) is { } saved
+            ? $"Saved key: {saved.Masked}  ({saved.Source}). Leave blank to keep it, or paste a new key and Save to replace it."
+            : "No key saved yet.";
+        remove.IsEnabled = _settings.DescribeKey(provider) is { Source: "encrypted on this PC" };
+    }
+
+    private void RemoveCloudKey(string provider, PasswordBox box, TextBlock state, Button remove)
+    {
+        _settings.RemoveApiKey(provider);
+        box.Clear();
+        _llm = null; // the old key must not stay in use
+        _ctx.Llm = null;
+        ShowKeyState(provider, state, remove);
+        if (_settings.DescribeKey(provider) is not null)
+            state.Text += "  The saved key was removed, but an environment variable still provides one.";
+        else
+            state.Text = "Key removed. Paste a new one to use this model, or choose another.";
+    }
+
+    private void RemoveClaudeKey_Click(object sender, RoutedEventArgs e) => RemoveCloudKey("claude", ClaudeKeyBox, ClaudeKeyState, RemoveClaudeKeyButton);
+    private void RemoveOpenAiKey_Click(object sender, RoutedEventArgs e) => RemoveCloudKey("openai", OpenAiKeyBox, OpenAiKeyState, RemoveOpenAiKeyButton);
 
     private void RemoveKey_Click(object sender, RoutedEventArgs e)
     {

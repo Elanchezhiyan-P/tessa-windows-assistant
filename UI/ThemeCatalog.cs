@@ -27,6 +27,51 @@ public static class ThemeCatalog
     /// <summary>The accent and tint now in use, for things drawn in code (chat bubbles, the window background).</summary>
     public static Color CurrentAccent { get; private set; } = All[0].Accent;
     public static Color CurrentTint { get; private set; } = All[0].Tint;
+    /// <summary>True while the light look is on.</summary>
+    public static bool IsLight { get; private set; }
+
+    public static readonly int[] Sizes = [90, 100, 115, 130];
+
+    /// <summary>The nearest supported interface size, in percent.</summary>
+    public static int NormalizeSize(int percent) => Sizes.OrderBy(s => Math.Abs(s - percent)).First();
+
+    public static readonly string[] Modes = ["dark", "light", "system"];
+
+    /// <summary>"dark", "light" or "system"; anything else is "dark".</summary>
+    public static string NormalizeMode(string? mode) =>
+        Modes.FirstOrDefault(m => m.Equals(mode?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "dark";
+
+    /// <summary>Whether the light look applies for a mode; "system" follows the Windows "app mode" setting.</summary>
+    public static bool ResolveLight(string? mode, Func<bool>? systemIsLight = null) => NormalizeMode(mode) switch
+    {
+        "light" => true,
+        "system" => (systemIsLight ?? SystemIsLight)(),
+        _ => false
+    };
+
+    public static bool SystemIsLight()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            return key?.GetValue("AppsUseLightTheme") is int v && v != 0;
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or IOException or UnauthorizedAccessException) { return false; }
+    }
+
+    /// <summary>The window colour for the light look: the theme's tint, almost white.</summary>
+    public static Color LightTint(Color tint) =>
+        Color.FromRgb(Lift(tint.R), Lift(tint.G), Lift(tint.B));
+
+    private static byte Lift(byte c) => (byte)(c + (255 - c) * 0.93);
+
+    /// <summary>Darkens an accent until white text on it, and the accent as text on a light window, are readable.</summary>
+    public static Color EnsureReadableOnLight(Color color)
+    {
+        for (var i = 0; i < 12 && Luminance(color) > 0.18; i++)
+            color = Color.FromRgb((byte)(color.R * 0.9), (byte)(color.G * 0.9), (byte)(color.B * 0.9));
+        return color;
+    }
 
     public static AppTheme Find(string? key) =>
         All.FirstOrDefault(t => t.Key.Equals(key?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? All[0];
@@ -63,8 +108,11 @@ public static class ThemeCatalog
     }
 
     /// <summary>The theme's accent, or the user's own colour when it is valid.</summary>
-    public static Color ResolveAccent(AppTheme theme, string? accentOverride) =>
-        TryParseAccent(accentOverride, out var custom) ? EnsureVisible(custom) : theme.Accent;
+    public static Color ResolveAccent(AppTheme theme, string? accentOverride, bool light = false)
+    {
+        var accent = TryParseAccent(accentOverride, out var custom) ? custom : theme.Accent;
+        return light ? EnsureReadableOnLight(accent) : TryParseAccent(accentOverride, out _) ? EnsureVisible(accent) : accent;
+    }
 
     /// <summary>The background for the user's own chat messages: the accent, slightly deeper so white text reads well.</summary>
     public static Color UserBubble(Color accent) => Color.FromRgb((byte)(accent.R * 0.9), (byte)(accent.G * 0.9), (byte)(accent.B * 0.9));
@@ -73,16 +121,53 @@ public static class ThemeCatalog
     /// Recolours the shared brushes in place, so every open window changes at once. Returns false when a brush could not be
     /// changed (it is frozen), in which case the new colour appears the next time the app starts.
     /// </summary>
-    public static bool Apply(ResourceDictionary resources, AppTheme theme, string? accentOverride)
+    public static bool Apply(ResourceDictionary resources, AppTheme theme, string? accentOverride, string? mode = null)
     {
-        var accent = ResolveAccent(theme, accentOverride);
+        var light = ResolveLight(mode);
+        IsLight = light;
+        var accent = ResolveAccent(theme, accentOverride, light);
         CurrentAccent = accent;
-        CurrentTint = theme.Tint;
+        CurrentTint = light ? LightTint(theme.Tint) : theme.Tint;
 
         var live = Recolor(resources, "Accent", accent);
         live &= Recolor(resources, "AccentSoft", Color.FromArgb(0x40, accent.R, accent.G, accent.B));
+        foreach (var (key, dark, bright) in Palette)
+            if (resources[key] is not null) live &= Recolor(resources, key, light ? bright : dark);
         return live;
     }
+
+    // Brushes that differ between the two looks: key, dark value, light value.
+    private static readonly (string Key, Color Dark, Color Light)[] Palette =
+    [
+        ("Fg", Hex("#F4F4F7"), Hex("#1C1D24")),
+        ("Muted", Hex("#A3A6B5"), Hex("#5A5E6E")),
+        ("Surface", Hex("#1FFFFFFF"), Hex("#12000000")),
+        ("SurfaceHover", Hex("#2EFFFFFF"), Hex("#1C000000")),
+        ("Stroke", Hex("#1FFFFFFF"), Hex("#22000000")),
+        ("SegmentBack", Hex("#14FFFFFF"), Hex("#0D000000")),
+        ("TrackBack", Hex("#33FFFFFF"), Hex("#2E000000")),
+        ("ThumbBack", Hex("#55FFFFFF"), Hex("#55000000")),
+        ("AssistantBubble", Hex("#26FFFFFF"), Hex("#10000000")),
+        ("ErrorText", Hex("#FFA9A9"), Hex("#B3261E")),
+        ("ErrorBubble", Hex("#40FF5A5A"), Hex("#22D32F2F")),
+        ("CodeBack", Hex("#33000000"), Hex("#12000000")),
+        ("InlineCodeBack", Hex("#33FFFFFF"), Hex("#14000000")),
+        ("LinkFg", Hex("#8FB0FF"), Hex("#1D4ED8")),
+        ("WindowBack", Hex("#FF1E1F26"), Hex("#FFF3F4F8")),
+        ("NoteFg", Hex("#FFC27A"), Hex("#9A5B00")),
+        ("PopupBackground", Hex("#FF2B2C35"), Hex("#FFFAFAFD"))
+    ];
+
+    /// <summary>A shared palette brush (it changes in place with the theme), or a fixed one when the app has no resources, as in tests.</summary>
+    public static Brush PaletteBrush(string key)
+    {
+        if (Application.Current?.Resources[key] is Brush live) return live;
+        var fallback = new SolidColorBrush(Palette.First(p => p.Key == key).Dark);
+        fallback.Freeze();
+        return fallback;
+    }
+
+    private static Color Hex(string text) => (Color)ColorConverter.ConvertFromString(text);
 
     private static bool Recolor(ResourceDictionary resources, string key, Color color)
     {

@@ -12,12 +12,12 @@
 
     <Border x:Name="Surface" Padding="16,14,16,12">
         <StackPanel>
-            <TextBlock Text="Quick capture" Foreground="{StaticResource Fg}" FontSize="13" FontWeight="SemiBold" />
+            <TextBlock Text="Quick capture" Foreground="{DynamicResource Fg}" FontSize="13" FontWeight="SemiBold" />
             <TextBlock Text="Type a note. Start with “todo:” to save it as a task. Enter saves, Esc cancels."
-                       Foreground="{StaticResource Muted}" FontSize="11" Margin="0,2,0,8" TextWrapping="Wrap" />
+                       Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,2,0,8" TextWrapping="Wrap" />
             <TextBox x:Name="Box" Style="{StaticResource Field}" AcceptsReturn="False" MaxLength="500"
                      AutomationProperties.Name="Note" KeyDown="Box_KeyDown" />
-            <TextBlock x:Name="Result" MinHeight="14" Foreground="{StaticResource Muted}" FontSize="11" Margin="2,8,0,0" />
+            <TextBlock x:Name="Result" MinHeight="14" Foreground="{DynamicResource Muted}" FontSize="11" Margin="2,8,0,0" />
         </StackPanel>
     </Border>
 </Window>
