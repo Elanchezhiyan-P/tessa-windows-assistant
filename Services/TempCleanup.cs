@@ -34,22 +34,29 @@ public static class TempCleanup
     }
 
     /// <summary>
-    /// A folder is only cleaned if it is deep enough inside the user's profile or the temp folder to be one of the known areas, so a
-    /// mistake can never reach a drive root, the profile itself or Windows.
+    /// A folder is only cleaned if it is one of the places that hold nothing but throwaway files: the temp folder (when it really is
+    /// called temp) or a folder inside LocalAppData (the internet cache, crash dumps, error reports). Never a drive root, the profile,
+    /// Documents, Downloads or Windows, even if an environment variable points there.
     /// </summary>
     public static bool IsSafeRoot(string path)
     {
         var full = System.IO.Path.TrimEndingDirectorySeparator(System.IO.Path.GetFullPath(path));
         var profile = System.IO.Path.TrimEndingDirectorySeparator(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+        var local = System.IO.Path.TrimEndingDirectorySeparator(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
         var temp = System.IO.Path.TrimEndingDirectorySeparator(System.IO.Path.GetFullPath(System.IO.Path.GetTempPath()));
 
         if (full.Length <= 3) return false; // a drive root
         if (full.Equals(profile, StringComparison.OrdinalIgnoreCase)) return false;
 
-        // Someone may have pointed TEMP at a folder of real data. Only a folder that is called temp is treated as one.
-        var tempName = System.IO.Path.GetFileName(temp);
-        var tempIsTemp = tempName.Contains("temp", StringComparison.OrdinalIgnoreCase) || tempName.Contains("tmp", StringComparison.OrdinalIgnoreCase);
-        return Inside(full, profile) || (tempIsTemp && (Inside(full, temp) || full.Equals(temp, StringComparison.OrdinalIgnoreCase)));
+        // Anything in the temp folder counts only if that folder is called temp: someone may have pointed TEMP at a folder of real
+        // data (even one inside their profile), and that must never be treated as junk.
+        if (full.Equals(temp, StringComparison.OrdinalIgnoreCase) || Inside(full, temp))
+        {
+            var tempName = System.IO.Path.GetFileName(temp);
+            return tempName.Contains("temp", StringComparison.OrdinalIgnoreCase) || tempName.Contains("tmp", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return Inside(full, local);
     }
 
     private static bool Inside(string path, string parent) =>

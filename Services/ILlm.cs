@@ -15,8 +15,13 @@ public interface ILlm
     /// <summary>Raised after a tool runs, with the real result, so the user sees what actually happened.</summary>
     event Action<string>? ToolFinished;
 
-    /// <summary>One chat turn, running any tool calls the model asks for.</summary>
-    Task<string> SendAsync(string userText);
+    /// <summary>
+    /// One chat turn, running any tool calls the model asks for.
+    /// </summary>
+    /// <param name="partial">When given, the answer so far is reported as it is written (the whole text each time, empty when a new
+    /// round starts after a tool ran). Without it the model is asked for the finished answer in one piece.</param>
+    /// <param name="cancel">Stops the request in flight; the half-finished turn is dropped from the model's memory.</param>
+    Task<string> SendAsync(string userText, IProgress<string>? partial = null, CancellationToken cancel = default);
 
     /// <summary>Stateless single request, optionally with text to work on and a PNG screenshot.</summary>
     Task<string> GenerateAsync(string instruction, string? text = null, byte[]? png = null);
@@ -58,7 +63,7 @@ public abstract class LlmClientBase : ILlm
 
     protected ToolRegistry Tools => _tools;
 
-    public abstract Task<string> SendAsync(string userText);
+    public abstract Task<string> SendAsync(string userText, IProgress<string>? partial = null, CancellationToken cancel = default);
     public abstract Task<string> GenerateAsync(string instruction, string? text = null, byte[]? png = null);
     public abstract void ClearHistory();
     public abstract bool IsCloud { get; }

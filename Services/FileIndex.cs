@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.Data.Sqlite;
 
 namespace WinCompanion.Services;
@@ -45,6 +46,20 @@ public static class FileIndex
 
         if (!Directory.Exists(full)) { reason = "That folder doesn't exist."; return false; }
         if (full.Length <= 3) { reason = "Pick a folder, not a whole drive."; return false; }
+
+        var segments = full.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+        // An 8.3 short name (PROGRA~1) hides which folder it really is from the checks below, so it isn't accepted.
+        if (segments.Any(s => Regex.IsMatch(s, @"^[^~]{1,8}~\d+(\.[^.]{0,3})?$")))
+        {
+            reason = "Use the folder's full name, not a short name like PROGRA~1.";
+            return false;
+        }
+        // App data wherever it sits (AppData, AppData\LocalLow ...): browser profiles, settings and logs live there.
+        if (segments.Any(s => s.Equals("AppData", StringComparison.OrdinalIgnoreCase)))
+        {
+            reason = "That is a system or app-data folder. Choose a folder with your own documents.";
+            return false;
+        }
 
         foreach (var special in new[]
                  {
@@ -192,9 +207,19 @@ public static class FileIndex
                 }
 
                 progress?.Report($"Reading {done} of {current.Count}: {file.Name}");
-                var text = DocumentText.Extract(file.FullName, out var problem);
+
+                // The file is somebody's document (or a hostile one): whatever is wrong with it must cost only that file, never the run.
+                string? text;
+                string? problem;
+                try { text = DocumentText.Extract(file.FullName, out problem); }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    text = null;
+                    problem = $"I couldn't read it ({ex.GetType().Name}).";
+                }
+
                 var chunks = text is null ? [] : TextChunks.Split(text).Take(MaxChunksPerFile).ToList();
-                Save(db, folder, file, modified, chunks, problem, old.Id);
+                if (!Save(db, folder, file, modified, chunks, problem, old.Id)) break; // the folder was removed while this ran
 
                 if (chunks.Count == 0) problems++;
                 if (old.Id == 0) added++; else updated++;
@@ -255,9 +280,20 @@ public static class FileIndex
         }
     }
 
-    private static void Save(SqliteConnection db, string folder, FileInfo file, string modified, List<string> chunks, string? problem, long oldId)
+    /// <summary>Stores one file's text. False (and nothing stored) when its folder is no longer in the list, so a folder the user just
+    /// removed can't be filled again by an update that was already running.</summary>
+    private static bool Save(SqliteConnection db, string folder, FileInfo file, string modified, List<string> chunks, string? problem, long oldId)
     {
         using var transaction = db.BeginTransaction();
+
+        using (var check = db.CreateCommand())
+        {
+            check.Transaction = transaction;
+            check.CommandText = "SELECT 1 FROM index_folders WHERE path = $folder";
+            check.Parameters.AddWithValue("$folder", folder);
+            if (check.ExecuteScalar() is null) return false;
+        }
+
         if (oldId != 0) DeleteChunks(db, transaction, oldId);
 
         long id = oldId;
@@ -292,6 +328,7 @@ public static class FileIndex
             insert.ExecuteNonQuery();
         }
         transaction.Commit();
+        return true;
     }
 
     private static void Delete(SqliteConnection db, long id)
@@ -407,7 +444,7 @@ public static class FileIndex
     {
         if (words.Count == 0) yield break;
         using var command = db.CreateCommand();
-        var sb = new StringBuilder("SELECT path, modified FROM index_files WHERE 1 = 1");
+        var sb = new StringBuilder("SELECT path, modified FROM index_files WHERE folder IN (SELECT path FROM index_folders)");
         for (var i = 0; i < words.Count; i++)
         {
             sb.Append($" AND instr(lower(path), $w{i}) > 0");
@@ -431,7 +468,7 @@ public static class FileIndex
             FROM index_fts
             JOIN index_chunks c ON c.id = index_fts.rowid
             JOIN index_files f ON f.id = c.file_id
-            WHERE index_fts MATCH $match
+            WHERE index_fts MATCH $match AND f.folder IN (SELECT path FROM index_folders)
             """);
         command.Parameters.AddWithValue("$match", match);
         AppendDates(sb, command, after, before, "f.modified");

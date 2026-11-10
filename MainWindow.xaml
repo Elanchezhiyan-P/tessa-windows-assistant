@@ -481,6 +481,8 @@
                             ToolTip="Talk (Ctrl+Alt+V)" Click="Mic_Click" />
                     <Button x:Name="SendButton" Grid.Column="2" Style="{StaticResource IconButton}" Content="&#xE724;"
                             ToolTip="Send" Margin="0,0,5,0" Click="Send_Click" />
+                    <Button x:Name="StopButton" Grid.Column="2" Style="{StaticResource IconButton}" Content="&#xE71A;"
+                            ToolTip="Stop" Margin="0,0,5,0" Visibility="Collapsed" Click="Stop_Click" />
                 </Grid>
             </Border>
 

@@ -176,7 +176,7 @@ public partial class MainWindow : Window
         BriefingCityBox.Text = _appSettings.BriefingCity;
         BriefingTopicsBox.Text = _appSettings.BriefingTopics;
         AboutName.Text = _appSettings.AssistantName;
-        AboutVersion.Text = "Version " + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "2.0.0");
+        AboutVersion.Text = "Version " + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "2.1.0");
         ProfileName.Text = _appSettings.UserName;
         ProfileNick.Text = _appSettings.UserNickname;
         AssistantNameBox.Text = _appSettings.AssistantName;
@@ -409,11 +409,11 @@ public partial class MainWindow : Window
 
     // ---- Chat ---------------------------------------------------------------------------------------
 
-    private void AddMessage(string role, string text)
+    private void AddMessage(string role, string text, bool animate = true)
     {
         var entry = new ChatEntry(role, text, DateTime.Now);
         _chat.Append(entry);
-        Messages.Children.Add(ChatBubbles.Create(entry, animate: true));
+        Messages.Children.Add(ChatBubbles.Create(entry, animate));
         _historyOpen = true;
         _settingsOpen = false;
         RefreshLayout();
@@ -600,23 +600,40 @@ public partial class MainWindow : Window
 
         AddMessage("user", display);
         SetBusy(true);
+
+        // The answer appears as it is written, and the Stop button ends the request.
+        using var stop = new CancellationTokenSource();
+        _chatStop = stop;
+        BeginLiveReply();
         try
         {
-            var reply = await client.SendAsync(sendText ?? display);
-            AddMessage("assistant", reply.Length > 0 ? reply : "(no reply)");
+            var reply = await client.SendAsync(sendText ?? display, new Progress<string>(OnLiveReply), stop.Token);
+            var hadLive = EndLiveReply();
+            AddMessage("assistant", reply.Length > 0 ? reply : "(no reply)", animate: !hadLive); // no fade-in when it replaces the live text
             if (spoken) Speak(reply);
             ShowScreenFollowUps();
         }
+        catch (OperationCanceledException)
+        {
+            // Stopped by the user: keep what had been written, and say so.
+            var written = _liveText;
+            EndLiveReply();
+            AddMessage("assistant", written.Length > 0 ? written + "\n\n*(stopped)*" : "*(stopped)*", animate: false);
+        }
         catch (LlmException ex)
         {
+            EndLiveReply();
             AddMessage("error", ex.Message);
         }
         catch (Exception ex)
         {
+            EndLiveReply();
             AddMessage("error", $"Something went wrong: {ex.Message}");
         }
         finally
         {
+            _chatStop = null;
+            EndLiveReply();
             SetBusy(false);
         }
     }

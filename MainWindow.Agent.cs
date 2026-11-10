@@ -53,10 +53,13 @@ public partial class MainWindow
             try { texts = AgentPlanner.Parse(await client.GenerateAsync(AgentPlanner.Instruction(_tools.Names()), goal)); }
             catch (LlmException ex)
             {
-                AddMessage("error", ex.Message);
+                AgentSay("error", ex.Message);
                 return;
             }
             finally { SetBusy(false); }
+
+            // "New chat" while the plan was being written: the chat it was for is gone, so drop the plan instead of showing it.
+            if (_agentAbandoned) return;
 
             if (texts.Count == 0)
             {

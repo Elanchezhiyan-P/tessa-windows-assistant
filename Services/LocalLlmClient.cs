@@ -50,7 +50,7 @@ public sealed class LocalLlmClient : LlmClientBase
 
     // ---- Chat with tools -------------------------------------------------------------------
 
-    public override async Task<string> SendAsync(string userText)
+    public override async Task<string> SendAsync(string userText, IProgress<string>? partial = null, CancellationToken cancel = default)
     {
         var startCount = _history.Count;
         _history.Add(new JsonObject { ["role"] = "user", ["content"] = userText });
@@ -70,10 +70,13 @@ public sealed class LocalLlmClient : LlmClientBase
             string? lastToolResult = null;
             for (var round = 0; round < MaxToolRounds; round++)
             {
+                cancel.ThrowIfCancellationRequested();
+                partial?.Report(""); // a new round: whatever was shown before belongs to the step that just ended
+
                 var messages = new JsonArray(new JsonObject { ["role"] = "system", ["content"] = SystemPrompt() });
                 foreach (var entry in _history) messages.Add(entry!.DeepClone());
 
-                var message = await ChatAsync(_model, messages, Tools.OpenAiDeclarations(offered));
+                var message = await ChatAsync(_model, messages, Tools.OpenAiDeclarations(offered), partial, cancel);
 
                 var calls = message["tool_calls"]?.AsArray();
                 if (calls is null || calls.Count == 0)
@@ -223,32 +226,46 @@ public sealed class LocalLlmClient : LlmClientBase
 
     // ---- HTTP and friendly errors -------------------------------------------------------------
 
-    private async Task<JsonObject> ChatAsync(string model, JsonArray messages, JsonArray? tools)
+    private async Task<JsonObject> ChatAsync(string model, JsonArray messages, JsonArray? tools,
+        IProgress<string>? partial = null, CancellationToken cancel = default)
     {
+        var streaming = partial is not null;
         var body = new JsonObject
         {
             ["model"] = model,
             ["messages"] = messages,
-            ["stream"] = false,
+            ["stream"] = streaming,
             ["temperature"] = tools is null ? 0.3 : 0.1 // deterministic enough for tool calls to be reliable
         };
         if (tools is not null) body["tools"] = tools;
-        LlmDebug.Write($"local request ({tools?.Count ?? 0} tools)", Regex.Replace(body.ToJsonString(), "base64,[A-Za-z0-9+/=]{100,}", "base64,<image omitted>"));
+        LlmDebug.Write($"local request ({tools?.Count ?? 0} tools, {(streaming ? "streaming" : "one piece")})", Regex.Replace(body.ToJsonString(), "base64,[A-Za-z0-9+/=]{100,}", "base64,<image omitted>"));
 
         HttpStatusCode status;
         string text;
         try
         {
-            using var resp = await _http.PostAsJsonAsync($"{_baseUrl}/chat/completions", body);
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/chat/completions") { Content = JsonContent.Create(body) };
+            using var resp = await _http.SendAsync(request, streaming ? HttpCompletionOption.ResponseHeadersRead : HttpCompletionOption.ResponseContentRead, cancel);
             status = resp.StatusCode;
-            text = await resp.Content.ReadAsStringAsync();
+
+            // A server that ignores "stream" answers with plain JSON, which is read below as before.
+            if (status == HttpStatusCode.OK && streaming && resp.Content.Headers.ContentType?.MediaType == "text/event-stream")
+            {
+                var builder = new OpenAiMessageBuilder();
+                await foreach (var data in ServerSentEvents.ReadAsync(await resp.Content.ReadAsStreamAsync(cancel), cancel))
+                    builder.Add(data, soFar => partial!.Report(OpenAiMessageBuilder.HideThinking(soFar)));
+                LlmDebug.Write("local response 200 (streamed)", builder.Text);
+                return builder.Build();
+            }
+
+            text = await resp.Content.ReadAsStringAsync(cancel);
             LlmDebug.Write($"local response {(int)status}", text);
         }
-        catch (TaskCanceledException)
+        catch (TaskCanceledException) when (!cancel.IsCancellationRequested)
         {
             throw new LlmException("The local model took too long to answer (the first request can be slow while the model loads). Try again.");
         }
-        catch (HttpRequestException)
+        catch (Exception ex) when (ex is HttpRequestException or IOException)
         {
             throw new LlmException($"Can't reach the local model server at {_baseUrl}. Is Ollama or LM Studio running?");
         }

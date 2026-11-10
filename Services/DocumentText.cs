@@ -17,6 +17,8 @@ public static class DocumentText
     private const long MaxTextBytes = 8L * 1024 * 1024;
     private const long MaxDocumentBytes = 40L * 1024 * 1024;
     private const int MaxPdfPages = 400;
+    // A part of an Office file can be a tiny zip entry that expands to gigabytes. Anything over this is not read.
+    private const long MaxEntryBytes = 60L * 1024 * 1024;
 
     private static readonly HashSet<string> PlainText = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -32,6 +34,17 @@ public static class DocumentText
         var ext = Path.GetExtension(path);
         return PlainText.Contains(ext) || Markup.Contains(ext) || Office.Contains(ext) || ext.Equals(".pdf", StringComparison.OrdinalIgnoreCase);
     }
+
+    // Files that are safe to hand to Windows to open: documents and plain data. Scripts and code (.bat, .ps1, .js, .py ...) are
+    // readable and searchable, but "opening" one would RUN it, so they are never opened from a search result.
+    private static readonly HashSet<string> Openable = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".pdf", ".docx", ".xlsx", ".pptx", ".txt", ".md", ".markdown", ".csv", ".tsv", ".log", ".json", ".xml", ".yml", ".yaml",
+        ".ini", ".cfg", ".toml", ".tex", ".html", ".htm"
+    };
+
+    /// <summary>True for documents that can be opened in their normal app without any risk of running code.</summary>
+    public static bool IsSafeToOpen(string path) => Openable.Contains(Path.GetExtension(path));
 
     public static string SupportedList => "text and code files, HTML, Word (.docx), Excel (.xlsx), PowerPoint (.pptx) and PDF";
 
@@ -83,11 +96,38 @@ public static class DocumentText
         return new string(buffer, 0, read);
     }
 
+    // Time limits on the patterns: a page full of unclosed <script tags can make a backtracking pattern crawl.
+    private static readonly TimeSpan PatternTimeout = TimeSpan.FromSeconds(2);
+    private static readonly Regex ScriptOrStyle = new(@"<(script|style)\b.*?</\1>", RegexOptions.Singleline | RegexOptions.IgnoreCase | RegexOptions.Compiled, PatternTimeout);
+    private static readonly Regex BlockEnd = new(@"<\s*(br|/p|/div|/li|/h\d|/tr)\b[^>]*>", RegexOptions.IgnoreCase | RegexOptions.Compiled, PatternTimeout);
+    private static readonly Regex AnyTag = new("<[^>]+>", RegexOptions.Compiled, PatternTimeout);
+
     private static string FromHtml(string html)
     {
-        html = Regex.Replace(html, @"<(script|style)\b.*?</\1>", " ", RegexOptions.Singleline | RegexOptions.IgnoreCase);
-        html = Regex.Replace(html, @"<\s*(br|/p|/div|/li|/h\d|/tr)\b[^>]*>", "\n", RegexOptions.IgnoreCase);
-        return WebUtility.HtmlDecode(Regex.Replace(html, "<[^>]+>", " "));
+        try
+        {
+            html = ScriptOrStyle.Replace(html, " ");
+            html = BlockEnd.Replace(html, "\n");
+            return WebUtility.HtmlDecode(AnyTag.Replace(html, " "));
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            return WebUtility.HtmlDecode(StripTags(html)); // a page built to make the patterns crawl: a plain scan can't be slowed down
+        }
+    }
+
+    /// <summary>Removes everything between &lt; and &gt; in one pass.</summary>
+    internal static string StripTags(string html)
+    {
+        var sb = new StringBuilder(html.Length);
+        var inTag = false;
+        foreach (var c in html)
+        {
+            if (c == '<') { if (!inTag) sb.Append(' '); inTag = true; }
+            else if (c == '>' && inTag) inTag = false;
+            else if (!inTag) sb.Append(c);
+        }
+        return sb.ToString();
     }
 
     private static string? FromPdf(string path, out string? problem)
@@ -126,6 +166,8 @@ public static class DocumentText
         var sb = new StringBuilder();
         foreach (var (entry, number) in slides)
         {
+            if (sb.Length >= MaxChars) break; // enough text: don't keep opening thousands of slides
+            if (entry.Length > MaxEntryBytes) throw new InvalidDataException("A part of this file is too large to read.");
             using var stream = entry.Open();
             sb.AppendLine($"Slide {number}:").AppendLine(OfficeXml(stream, "t", "p")).AppendLine();
         }
@@ -135,7 +177,7 @@ public static class DocumentText
     private static int SlideNumber(string name)
     {
         var match = Regex.Match(name, @"^ppt/slides/slide(\d+)\.xml$", RegexOptions.IgnoreCase);
-        return match.Success ? int.Parse(match.Groups[1].Value) : 0;
+        return match.Success && int.TryParse(match.Groups[1].Value, out var number) ? number : 0; // a huge number in a crafted name is not a slide
     }
 
     private static string FromZip(string path, string[] parts, string textElement, string blockElement)
@@ -146,6 +188,7 @@ public static class DocumentText
         {
             var entry = zip.GetEntry(part);
             if (entry is null) continue;
+            if (entry.Length > MaxEntryBytes) throw new InvalidDataException("A part of this file is too large to read.");
             using var stream = entry.Open();
             sb.AppendLine(OfficeXml(stream, textElement, blockElement));
         }

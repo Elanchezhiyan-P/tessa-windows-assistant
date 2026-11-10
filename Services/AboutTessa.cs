@@ -35,7 +35,7 @@ public static class AboutTessa
     public static bool IsFeaturesQuestion(string text) => text.Length <= MaxQuestionLength && FeaturesQuestion.IsMatch(text);
 
     public static string Version =>
-        Assembly.GetExecutingAssembly().GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "2.0.0";
+        Assembly.GetExecutingAssembly().GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "2.1.0";
 
     /// <param name="brain">How the current model is described, for example "Google Gemini" or "a local model (qwen2.5:3b)".</param>
     public static string About(string assistantName, string brain) =>
@@ -60,6 +60,7 @@ public static class AboutTessa
         • Health nudges: water, posture, eye rest and stretching (/nudge); held during focus sessions.
         • Search your whole chat history (/search or Ctrl+F) and undo file moves and tidy-ups (/undo).
         • Updates and support: /update checks GitHub, /diagnostics copies details for a bug report.
+        • Replies appear as they are written, and the Stop button ends one; /startup, /find and /cleanup scan show switches and buttons instead of plain text.
         • Look after your PC: /slow finds why it feels slow, /startup switches off programs that start with Windows, and /cleanup removes junk files (asking first).
         • Your documents: /index add <folder>, then /find or ask me ("find the invoice from March", "what does this contract say about notice?"). PDF, Word, Excel, PowerPoint and text files.
         • Bigger jobs: /agent <goal> and I write a plan, you approve it once, and I do it step by step. Every step still asks before anything risky, and you can Stop.

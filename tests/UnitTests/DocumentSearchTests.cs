@@ -625,7 +625,7 @@ public class DocumentToolTests : DocumentFixture
     {
         public event Action<string>? ToolCalled { add { } remove { } }
         public event Action<string>? ToolFinished { add { } remove { } }
-        public Task<string> SendAsync(string userText) => Task.FromResult("");
+        public Task<string> SendAsync(string userText, IProgress<string>? partial = null, CancellationToken cancel = default) => Task.FromResult("");
         public Task<string> GenerateAsync(string instruction, string? text = null, byte[]? png = null) => Task.FromResult("");
         public void ClearHistory() { }
         public bool IsCloud => true;

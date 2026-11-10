@@ -12,6 +12,9 @@ internal static class GeminiApi
 
     public static string GenerateUrl => $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:generateContent";
 
+    /// <summary>The same request, answered piece by piece as server-sent events.</summary>
+    public static string StreamUrl => $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:streamGenerateContent?alt=sse";
+
     public static string Describe(HttpStatusCode status, string body, TimeSpan? retryAfter)
     {
         var message = ErrorMessage(body);

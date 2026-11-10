@@ -171,6 +171,7 @@ public partial class MainWindow
             var path = folder;
             remove.Click += (_, _) =>
             {
+                _indexCancel?.Cancel(); // an update that is reading this folder must not put its documents back
                 SettingsNote.Text = FileIndex.RemoveFolder(path);
                 RefreshIndexList();
             };
@@ -243,6 +244,12 @@ public partial class MainWindow
         {
             if (ex is not OperationCanceledException) AddMessage("error", $"Indexing stopped: {ex.Message}");
         }
+        catch (Exception ex)
+        {
+            // Anything unexpected: say so and leave a trail. An exception out of an async void handler would take the app down.
+            CrashLog.Write("Indexing", ex);
+            AddMessage("error", "Indexing stopped unexpectedly. The details are in the crash log.");
+        }
         finally
         {
             _indexing = false;
@@ -312,7 +319,9 @@ public partial class MainWindow
                 if (added.StartsWith("Added", StringComparison.Ordinal)) StartIndexing(announce: true);
                 return added + (added.StartsWith("Added", StringComparison.Ordinal) ? " I'm reading its documents in the background." : "");
             case "remove":
-                return rest.Length == 0 ? "Say which folder to remove." : FileIndex.RemoveFolder(BuiltInTools.ResolveFolder(rest));
+                if (rest.Length == 0) return "Say which folder to remove.";
+                _indexCancel?.Cancel(); // an update that is reading this folder must not put its documents back
+                return FileIndex.RemoveFolder(BuiltInTools.ResolveFolder(rest));
             case "now":
             case "update":
                 if (FileIndex.Folders().Count == 0) return "Add a folder first: /index add <folder>.";

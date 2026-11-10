@@ -56,6 +56,7 @@ public static class SelectionCapture
         string? previous = null;
         try
         {
+            if (!SafeToBorrow()) return null;
             if (Clipboard.ContainsText()) previous = Clipboard.GetText();
             else if (!IsClipboardEmpty()) return null;
         }
@@ -78,6 +79,24 @@ public static class SelectionCapture
         }
         catch (COMException) { /* clipboard busy: the borrowed text stays, which is harmless */ }
         return copied;
+    }
+
+    private static readonly string[] PlainTextFormats = ["Text", "UnicodeText", "System.String", "OEMText", "Locale"];
+
+    /// <summary>
+    /// The clipboard can only be borrowed when it holds plain text (or nothing). A password manager marks what it copies as private,
+    /// and rich text or a picture would be lost when only the plain text is put back, so those clipboards are left alone.
+    /// </summary>
+    internal static bool SafeToBorrow(IEnumerable<string>? formats = null)
+    {
+        formats ??= Clipboard.GetDataObject()?.GetFormats() ?? [];
+        foreach (var format in formats)
+        {
+            if (format.Contains("Exclude", StringComparison.OrdinalIgnoreCase) || format.Contains("CanIncludeInClipboardHistory", StringComparison.OrdinalIgnoreCase))
+                return false;
+            if (!PlainTextFormats.Contains(format, StringComparer.OrdinalIgnoreCase)) return false;
+        }
+        return true;
     }
 
     private static bool IsClipboardEmpty() => !Clipboard.ContainsText() && !Clipboard.ContainsImage()

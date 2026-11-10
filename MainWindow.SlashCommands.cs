@@ -56,12 +56,16 @@ public partial class MainWindow
                 await RunAgentAsync(args);
                 return "";
             case "startup":
+                if (args.Length == 0 && ShowStartupCard()) return "";
                 return await StartupCommandAsync(args);
             case "cleanup":
+                if (args.Equals("scan", StringComparison.OrdinalIgnoreCase) || args.Equals("check", StringComparison.OrdinalIgnoreCase))
+                    return await ShowCleanupCardAsync();
                 return await CleanupCommandAsync(args);
             case "slow":
                 return await PcCareTools.DiagnoseAsync();
             case "find":
+                if (ShowFindCard(args)) return "";
                 return FindCommand(args);
             case "index":
                 return IndexCommand(args);

@@ -5,7 +5,7 @@ about your PC, set reminders, open and arrange windows, take screenshots, rewrit
 you. She works with **Google Gemini** (free API key) or a **local model** such as Qwen running in Ollama or LM Studio, so
 you can keep everything on your own machine.
 
-> **Version 2.0.0.** Windows 10 and 11, 64-bit. New in 2.0: Gemini voice, a local database for chat history, memory and reminders (data from 1.x is not imported), quick capture, clipboard history, routines, focus mode, a daily briefing and screen text. It has been tested thoroughly on the author's PC (Windows 11) and
+> **Version 2.1.0.** Windows 10 and 11, 64-bit. New in 2.1: agent mode, searching your documents, PC care (slow-PC check, start-up programs, junk files), slash commands, replies that stream in with a Stop button, ask-about-selected-text and snip-to-copy-text shortcuts, themes, quiet hours, warnings and more: see [CHANGELOG.md](CHANGELOG.md). New in 2.0: Gemini voice, a local database for chat history, memory and reminders (data from 1.x is not imported), quick capture, clipboard history, routines, focus mode, a daily briefing and screen text. It has been tested thoroughly on the author's PC (Windows 11) and
 > has had little testing on other setups, so please report problems: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Demo
@@ -59,6 +59,12 @@ Find, read, move and rename files, create folders, tidy up Downloads, and send t
 
 ### Agent mode
 `/agent organise my Downloads and tell me what's biggest`: she writes a short plan (2 to 6 steps), shows it in the chat, and does nothing until you press **Run plan**. Then she works through the steps in order, with progress for each and a **Stop** button (it stops after the step she is on). Every step is an ordinary request to her, so anything risky still shows its approval card and everything is logged. If a step fails the plan stops and the rest are skipped; "New chat" also stops it. Only your goal is sent to the model to make the plan (no files or screen). A small local model makes weaker plans than Gemini, so check the plan before you run it.
+
+### Replies as they are written
+Answers appear word by word instead of all at once, and a **Stop** button (in place of Send) ends a reply that is slow or going the wrong way. What had been written is kept and marked "(stopped)", and the model does not remember the half-finished turn. It works with Gemini and with local servers that stream (Ollama, LM Studio, llama.cpp); a server that doesn't stream still works, with the reply appearing at once.
+
+### Results you can use
+`/startup` shows each start-up program with a switch. `/find` shows each match with **Open** and **Show in folder** buttons (scripts and programs get only *Show in folder*, so opening a result can never run code). `/cleanup scan` shows the size with a **Clean up** button that needs a second click, since deleting can't be undone. A plain-text copy of each is kept in the chat history.
 
 ### Look after your PC
 - `/slow` (or *Settings, PC & files, Is your PC slow?*): checks the processor, memory, drives, start-up programs, uptime and junk files and lists the likely causes, worst first, each with a fix. It changes nothing.
@@ -128,7 +134,7 @@ and an **Action log** of everything she ran and when.
 
 ## Install
 
-Run `WinCompanion-Setup-2.0.0.exe`. It installs for your user only (no admin rights needed) and includes everything it
+Run `WinCompanion-Setup-2.1.0.exe`. It installs for your user only (no admin rights needed) and includes everything it
 needs, so you don't have to install .NET. Windows SmartScreen may warn that the publisher is unknown, because the installer
 isn't signed with a paid certificate yet; choose **More info, Run anyway** if you trust the source.
 

@@ -1,6 +1,7 @@
 using System.IO;
 using System.Threading;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Markup;
 using System.Windows.Media;
 using WinCompanion.Services;
@@ -253,6 +254,25 @@ public class ThemeTests
             return ((SolidColorBrush)resources["Accent"]).Color;
         });
         Assert.Equal(Color.FromRgb(0xFF, 0x88, 0x00), color);
+    }
+
+    [Fact]
+    public void DropdownsAndSlidersHaveDarkStylesSoWindowsLightDefaultsNeverShow()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Themes", "Modern.xaml"))) dir = dir.Parent;
+        Assert.NotNull(dir);
+
+        var styled = OnStaThread(() =>
+        {
+            var resources = (ResourceDictionary)XamlReader.Parse(File.ReadAllText(Path.Combine(dir!.FullName, "Themes", "Modern.xaml")));
+            return new[] { typeof(ComboBox), typeof(ComboBoxItem), typeof(Slider) }
+                .Select(t => resources[t] is Style style && style.Setters.OfType<Setter>().Any(s => s.Property == Control.TemplateProperty))
+                .ToArray();
+        });
+
+        // One implicit style with its own template for each, so a dropdown (the voice and microphone lists) is dark like the rest.
+        Assert.All(styled, Assert.True);
     }
 
     [Fact]

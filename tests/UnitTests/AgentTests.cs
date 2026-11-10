@@ -224,7 +224,7 @@ public class AgentRunnerTests
             return Task.FromResult(plan);
         }
 
-        public Task<string> SendAsync(string userText)
+        public Task<string> SendAsync(string userText, IProgress<string>? partial = null, CancellationToken cancel = default)
         {
             Sent.Add(userText);
             return Task.FromResult(replies[_next++]);
