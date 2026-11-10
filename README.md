@@ -2,10 +2,10 @@
 
 Tessa is a desktop AI companion for Windows. Press a hotkey (or say "Hey Tessa"), type or talk, and she can answer questions
 about your PC, set reminders, open and arrange windows, take screenshots, rewrite what you copied, and run PowerShell for
-you. She works with **Google Gemini** (free API key) or a **local model** such as Qwen running in Ollama or LM Studio, so
-you can keep everything on your own machine.
+you. She works with **Google Gemini** (free API key), **Claude**, **any OpenAI-compatible service** (OpenAI, OpenRouter, Groq and others), or a
+**local model** such as Qwen running in Ollama or LM Studio, so you can keep everything on your own machine.
 
-> **Version 2.0.0.** Windows 10 and 11, 64-bit. New in 2.0: Gemini voice, a local database for chat history, memory and reminders (data from 1.x is not imported), quick capture, clipboard history, routines, focus mode, a daily briefing and screen text. It has been tested thoroughly on the author's PC (Windows 11) and
+> **Version 2.2.0.** Windows 10 and 11, 64-bit. New in 2.2: Claude and OpenAI-compatible models, several named chats with pinned messages, a floating focus timer, a light theme and window size, backup and restore, and plans you can edit, save and schedule. New in 2.1: agent mode, searching your documents, PC care (slow-PC check, start-up programs, junk files), slash commands, replies that stream in with a Stop button, ask-about-selected-text and snip-to-copy-text shortcuts, themes, quiet hours, warnings and more: see [CHANGELOG.md](CHANGELOG.md). New in 2.0: Gemini voice, a local database for chat history, memory and reminders (data from 1.x is not imported), quick capture, clipboard history, routines, focus mode, a daily briefing and screen text. It has been tested thoroughly on the author's PC (Windows 11) and
 > has had little testing on other setups, so please report problems: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Demo
@@ -55,7 +55,27 @@ with Windows' own text recognition, so it never leaves your PC), **Explain this 
 Summarise, translate, fix the grammar of, shorten, or make more polite whatever you just copied.
 
 ### Files and folders
-Find, read, move and rename files, create folders, tidy up Downloads, and send things to the Recycle Bin. Nothing is ever deleted permanently.
+Find, read, move and rename files, create folders, tidy up Downloads, and send things to the Recycle Bin. Files you ask her to delete always go to the Recycle Bin. The one exception is *Clean up junk files* (below), which permanently deletes old temporary files, and only after you approve the size.
+
+### Agent mode
+`/agent organise my Downloads and tell me what's biggest`: she writes a short plan (2 to 6 steps), shows it in the chat, and does nothing until you press **Run plan**. Before you run it you can reword a step, move it up or down, remove it or add your own (up to 8). Then she works through the steps in order, with progress for each and a **Stop** button (it stops after the step she is on). Every step is an ordinary request to her, so anything risky still shows its approval card and everything is logged. If a step fails the plan stops and the rest are skipped; "New chat" also stops it. Only your goal is sent to the model to make the plan (no files or screen). A small local model makes weaker plans than Gemini, so check the plan before you run it.
+
+### Saved and scheduled plans
+Press **Save plan** on a plan (or `/plan save tidy downloads`) to keep it. `/plan run tidy downloads` shows it again, still editable, and runs it when you press **Run plan**. `/plan schedule tidy downloads every weekday at 9am` brings it up on a schedule (it uses the same times as reminders: "tomorrow at 8", "every Monday at 10:30", "every 2 hours"). **A scheduled plan never runs by itself:** at the time she plays the reminder sound, brings the plan into the chat and waits for **Run plan**; every step still asks before anything risky. `/plans` lists them with their schedules, `/plan unschedule <name>` and `/plan delete <name>` remove them.
+
+### Replies as they are written
+Answers appear word by word instead of all at once, and a **Stop** button (in place of Send) ends a reply that is slow or going the wrong way. What had been written is kept and marked "(stopped)", and the model does not remember the half-finished turn. It works with Gemini and with local servers that stream (Ollama, LM Studio, llama.cpp); a server that doesn't stream still works, with the reply appearing at once.
+
+### Results you can use
+`/startup` shows each start-up program with a switch. `/find` shows each match with **Open** and **Show in folder** buttons (scripts and programs get only *Show in folder*, so opening a result can never run code). `/cleanup scan` shows the size with a **Clean up** button that needs a second click, since deleting can't be undone. A plain-text copy of each is kept in the chat history.
+
+### Look after your PC
+- `/slow` (or *Settings, PC & files, Is your PC slow?*): checks the processor, memory, drives, start-up programs, uptime and junk files and lists the likely causes, worst first, each with a fix. It changes nothing.
+- `/startup`: lists the programs that start with Windows. `/startup off Spotify` stops one (after you approve); `/startup on Spotify` brings it back. It uses the same on/off switch as Task Manager, so nothing is uninstalled or deleted and no administrator rights are needed. The change applies from your next sign-in.
+- `/cleanup scan` shows how much junk there is; `/cleanup` deletes it after you approve the size. It only touches your temp folder, the internet cache, crash dumps and error reports, only files older than a day, never follows links out of those folders, and leaves anything in use alone. Deleted files can't be recovered.
+
+### Search your documents
+`/index add Documents` picks a folder; she reads the text of the PDF, Word, Excel, PowerPoint, text and code files in it in the background (at low priority; new and changed files are picked up each time she starts, or with `/index now`). Then `/find invoice after:2026-03` searches by words in the name or text, and you can just ask: *"find the invoice from March"* or *"what does the contract say about the notice period?"*. It matches words, not meaning, so search for words the document actually uses. A scanned PDF is only a picture and has no text to search. Only folders you add are read; system and app-data folders are refused. `/index remove <folder>` and `/index clear` forget what was read.
 
 ### Quick capture, notes and to-dos
 Press **Ctrl+Alt+N**, type, and press Enter: the note is saved to a Markdown file without opening the chat. Start with `todo:` to save it as a task.
@@ -74,8 +94,44 @@ Then just say *"good morning"*. Every step still asks for approval exactly as it
 ### Clipboard history (optional)
 Turn on *Remember the last 100 things I copy* in Settings, Safety, then ask *"what was that link I copied this morning?"*. It is off by default, stays on your PC, and skips copies from password managers.
 
-### Chat history and export
-Your whole chat history is kept in a local database (older messages load on request), and she can search it (*"what did I ask about the invoice last week?"*). Say *"export this chat"* to save it as a Markdown file in Documents\WinCompanion\exports.
+### Chats and pinned messages
+Chats are kept in a local database; older messages load on request, and she can search all of them (*"what did I ask about the invoice last week?"*). **New chat** (the plus in the header, or `/new`) starts another chat and **keeps** the one you were in. The chats button in the header lists them: open one, rename it (`/rename Holiday plans`), or delete it. A chat is named after the first thing you type in it (`/chats delete all` removes every chat after asking). When you open an old chat she is told its recent messages so you can carry on. The pin on a message (or `/pin` for her last reply) keeps it in the **Pinned** list (`/pins`) across every chat, and clicking a pinned message jumps to it. `/clear` empties just the open chat. Say *"export this chat"* (or `/export`) to save the open chat as a Markdown file in Documents\WinCompanion\exports. You can't switch chats while a reply is being written; press Stop first.
+
+### Floating timer
+A small always-on-top countdown shows the focus session (with a progress bar), the break, or a reminder that is less than an hour away. It never takes focus from what you are typing, can be dragged anywhere (it remembers the spot), hides while a full-screen app or game is running, and right-clicking it offers to stop the session or hide it. `/timer off` and `/timer on` (or *Settings, Look and alerts*) turn it off and on; `/timer reset` puts it back in the bottom-right corner.
+
+### Backup and restore
+`/backup` (or *Settings, PC & files, Back up*) saves your settings, what she remembers, routines, saved plans, reminders and notes to one zip file, to move to a new PC. `/restore` reads it back after showing what is inside and asking first. Restoring only **adds**: a plan or memory you already have is left alone, past one-time reminders are skipped, and routines that use an unknown tool are left out. A backup never contains an API key or your chat history, and these are never restored from a file: *Run freely* and *administrator commands*, the *ask before sending* switch, clipboard history, the microphone choice and a cloud service address. A local-server address is restored only if it points to this PC.
+
+### Slash commands
+Type `/` in the chat box for a list. They run in the app, never reach the model, and work without an API key: `/clear`, `/new`, `/chats`, `/chat`, `/rename`, `/pin`, `/pins`, `/export`, `/copy`, `/search`, `/undo`, `/briefing`, `/focus`, `/routine`, `/reminders`, `/agent`, `/plans`, `/plan`, `/slow`, `/startup`, `/cleanup`, `/index`, `/find`, `/clipboard`, `/snip`, `/ocr`, `/note`, `/nudge`, `/quiet`, `/health`, `/memory`, `/forget`, `/theme`, `/size`, `/timer`, `/backup`, `/restore`, `/model`, `/voice`, `/system`, `/update`, `/diagnostics`, `/tour`, `/features`, `/about` and `/help`. Ctrl+F opens `/search`.
+
+### Copy text from anywhere on the screen
+Press **Ctrl+Alt+T** (or type `/snip`), drag a box around any text (a picture, a video, an app that won't let you select) and it is copied to your clipboard. It is read with the text recognition built into Windows, on your PC and offline, in the languages installed in Windows. It is the same idea as the Snipping Tool's *Text actions*, but those use a separate engine that ships inside the Snipping Tool, which other programs can't use, so results can differ on hard text such as small or stylised print. `/ocr` does the same for the whole window or screen.
+
+### Ask about selected text
+Select text in any app, press **Ctrl+Alt+A**, and pick *Explain*, *Summarize*, *Fix grammar*, *Rewrite clearer*, *Shorten* or *Translate to English* (or type your own question). Rewriting results are copied to your clipboard, ready to paste back. The text is read through Windows accessibility where the app allows it, and otherwise with a quick Ctrl+C after which your clipboard is put back. With Gemini you are asked before the text is sent; the request runs without tools, so text that tries to give orders can't make her do anything.
+
+### Quiet hours and warnings
+*Settings, Look and alerts*: choose hours (for example 22:00 to 07:00) when she makes no sound, voice or pop-up. Nudges and warnings are skipped then; your own reminders still sound unless you tick the box to keep those quiet too, so an alarm is never missed. She can also warn you when a drive is nearly full (under 5% free, between 10 and 30 GB) or the battery reaches 20% and 10%, once per problem. `/quiet 22:00-07:00` and `/health` do the same from the chat.
+
+### Colours, light theme and size
+Seven colour themes and your own accent colour (`/theme forest`, `/theme #FF8800`), in a **dark** or **light** look, or *Match Windows* (`/theme light`, `/theme dark`, `/theme system`); the accent is darkened automatically on light so white text stays readable. *Settings, Look and alerts* also sets the **size** of the window and its text: Small, Normal, Large or Larger (`/size large`).
+
+### Voice and memory
+Pick any installed Windows voice and a speaking speed from -6 to +6 (`/voice list`, `/voice speed 2`). *Settings, You and her* lists everything she remembers about you, so you can delete a fact, add one, or forget it all (`/memory`, `/forget`).
+
+### First-run tour
+After the welcome screen, a three-step tour shows the shortcuts, the `/` commands and where Settings are. Replay it any time with `/tour` or *Settings, About, Show the tour*.
+
+### Health nudges
+`/nudge water`, `/nudge posture`, `/nudge eyes` or `/nudge stand` start a repeating reminder (add minutes, for example `/nudge water 45`); `/nudge off` stops them. During a focus work period they wait until your break.
+
+### Undo and search
+`/undo` puts back the last file move, rename or folder tidy-up (it never overwrites anything). `/search invoice` or Ctrl+F searches your whole chat history.
+
+### This PC, updates and diagnostics
+*Settings, PC & files* shows your Windows version, processor and cache, memory, graphics and disks, and suggests a local model that suits them. *Check for updates* (or `/update`) asks GitHub for the newest release when you press it. *Copy diagnostics* (or `/diagnostics`) copies a bug report with your user and PC names hidden.
 
 ### Notes and memory
 Say *"note: buy milk"* to add to a Markdown notes file. Tell her a lasting fact (*"my project folder is D:\Work"*) and she remembers it for
@@ -90,7 +146,7 @@ and an **Action log** of everything she ran and when.
 
 ## Install
 
-Run `WinCompanion-Setup-2.0.0.exe`. It installs for your user only (no admin rights needed) and includes everything it
+Run `WinCompanion-Setup-2.2.0.exe`. It installs for your user only (no admin rights needed) and includes everything it
 needs, so you don't have to install .NET. Windows SmartScreen may warn that the publisher is unknown, because the installer
 isn't signed with a paid certificate yet; choose **More info, Run anyway** if you trust the source.
 
@@ -103,6 +159,8 @@ the default is "Hey Tessa" but you can rename her to anything), and whether you 
 1. Press **Ctrl+Alt+Space** (or click the tray icon) to open the window.
 2. Open **Settings** (the gear) and choose a model:
    - **Gemini (cloud):** paste a free key from <https://aistudio.google.com/apikey>. It is stored encrypted for your Windows account.
+   - **Claude:** paste an API key from <https://console.anthropic.com>. The model is `claude-opus-5-5` by default; the chips (and `/model claude claude-sonnet-5-5`) choose a cheaper one. Stored encrypted for your Windows account.
+   - **OpenAI-compatible:** press a service (OpenAI, OpenRouter, Groq, Together) or type any address that speaks the OpenAI chat API and supports tools, paste its key and name a model. The key is sent only to that address.
    - **Local (Qwen):** install [Ollama](https://ollama.com), run `ollama pull qwen2.5:7b` (or any model that supports tool calling), then choose
      *Local*, press **Ollama** and **Detect**, and **Save**. Nothing leaves your PC.
 3. Ask something: *"what's the free space on my drives?"*, *"remind me in 10 minutes to stretch"*, *"what's on my screen?"*.
@@ -111,12 +169,15 @@ the default is "Hey Tessa" but you can rename her to anything), and whether you 
 
 | Where | Option | What it does |
 |---|---|---|
-| Settings | **Model** | Gemini (free key) or any OpenAI-compatible local server (Ollama, LM Studio, llama.cpp), with a separate optional vision model |
+| Settings | **Model** | Gemini (free key), Claude, any OpenAI-compatible cloud service, or an OpenAI-compatible local server (Ollama, LM Studio, llama.cpp) with a separate optional vision model. `/model claude`, `/model openai gpt-4o-mini`, `/model local` switch from the chat |
+| Settings | **Appearance, Size** | Dark, light or match Windows; Small to Larger |
+| Settings | **Floating timer** | The small countdown on screen |
+| Settings | **Back up, Restore** | One file with your settings, memory, routines, plans, reminders and notes |
 | Settings | **About you and her** | Your name, what she calls you, her name (and wake word), and a female or male voice |
 | Header + Settings | **Mute voice** | The speaker icon in the window header (or the switch in Settings) silences her spoken replies and reminders |
 | Settings | **About** | Version, author, website, email, GitHub and a "Report a problem" link |
-| Settings | **Gemini API key** | Paste a new key and Save to replace it, or **Remove saved key** to delete it |
-| Settings | **Privacy** | Ask before sending a screenshot, clipboard text or file to Gemini (on by default) |
+| Settings | **API keys** | Gemini, Claude and an OpenAI-compatible service each keep their own key: paste a new one and Save to replace it, or **Remove saved key** to delete it. `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` environment variables also work |
+| Settings | **Privacy** | Ask before sending a screenshot, clipboard text or file to a cloud model (on by default) |
 | Settings | **Reminder character** | Choose a character, or *None*; **Preview** shows it |
 | Settings | **PowerShell commands** | *Ask unless read-only* (default) or *Run freely* |
 | Settings | **Allow administrator commands** | Off by default; see below |
@@ -129,6 +190,9 @@ the default is "Hey Tessa" but you can rename her to anything), and whether you 
 | Ctrl+Alt+Space | Show or hide the window |
 | Ctrl+Alt+V | Talk (push-to-talk) |
 | Ctrl+Alt+N | Quick capture of a note or to-do |
+| Ctrl+Alt+A | Ask about the text you selected in any app |
+| Ctrl+Alt+T | Drag a box on the screen and copy its text |
+| Ctrl+F | Search your chat history (in her window) |
 | "Hey Tessa" | Talk, hands-free |
 
 ### Administrator commands (optional)
@@ -146,7 +210,7 @@ and every such command also needs your approval in the chat first. Leave it off 
 
 ## Privacy
 
-See [PRIVACY.md](PRIVACY.md). In short: with Gemini, your messages and tool results go to Google. With a screenshot, clipboard text or file, you
+See [PRIVACY.md](PRIVACY.md). In short: with Gemini, Claude or an OpenAI-compatible service, your messages and tool results go to that company. With a screenshot, clipboard text or file, you
 are asked first (you can turn that off). With a local model nothing leaves your PC. There is no telemetry.
 
 ## Characters

@@ -6,7 +6,7 @@ namespace WinCompanion.Services;
 /// <summary>A failure whose message is already fit to show the user.</summary>
 public sealed class LlmException(string message) : Exception(message);
 
-/// <summary>A chat model that can call tools. Implemented for Gemini and for local OpenAI-compatible servers.</summary>
+/// <summary>A chat model that can call tools: Gemini, Claude, an OpenAI-compatible cloud service, or a local server.</summary>
 public interface ILlm
 {
     /// <summary>Raised just before a tool runs, with a short description.</summary>
@@ -15,15 +15,26 @@ public interface ILlm
     /// <summary>Raised after a tool runs, with the real result, so the user sees what actually happened.</summary>
     event Action<string>? ToolFinished;
 
-    /// <summary>One chat turn, running any tool calls the model asks for.</summary>
-    Task<string> SendAsync(string userText);
+    /// <summary>
+    /// One chat turn, running any tool calls the model asks for.
+    /// </summary>
+    /// <param name="partial">When given, the answer so far is reported as it is written (the whole text each time, empty when a new
+    /// round starts after a tool ran). Without it the model is asked for the finished answer in one piece.</param>
+    /// <param name="cancel">Stops the request in flight; the half-finished turn is dropped from the model's memory.</param>
+    Task<string> SendAsync(string userText, IProgress<string>? partial = null, CancellationToken cancel = default);
 
     /// <summary>Stateless single request, optionally with text to work on and a PNG screenshot.</summary>
     Task<string> GenerateAsync(string instruction, string? text = null, byte[]? png = null);
 
     void ClearHistory();
 
-    /// <summary>True when requests leave this PC (Gemini); false for a model running locally.</summary>
+    /// <summary>
+    /// Replaces the model's memory of the conversation with these earlier messages ("user" or "assistant" and their text), so a chat
+    /// that is opened again carries on where it left off. Models that cannot do this ignore it.
+    /// </summary>
+    void SeedHistory(IReadOnlyList<(string Role, string Text)> messages) { }
+
+    /// <summary>True when requests leave this PC (Gemini, Claude, an OpenAI-compatible service); false for a model running locally.</summary>
     bool IsCloud { get; }
 }
 
@@ -33,7 +44,7 @@ public abstract class LlmClientBase : ILlm
     protected const int MaxToolRounds = 6;
     protected const int MaxHistoryEntries = 40;
 
-    private static readonly string[] ContextFiles = ["context.json", "context.gemini.json", "context.local.json"];
+    private static readonly string[] ContextFiles = ["context.json", "context.gemini.json", "context.local.json", "context.claude.json", "context.openai.json"];
 
     private readonly ToolRegistry _tools;
     private readonly ToolExecutor _executor;
@@ -58,10 +69,11 @@ public abstract class LlmClientBase : ILlm
 
     protected ToolRegistry Tools => _tools;
 
-    public abstract Task<string> SendAsync(string userText);
+    public abstract Task<string> SendAsync(string userText, IProgress<string>? partial = null, CancellationToken cancel = default);
     public abstract Task<string> GenerateAsync(string instruction, string? text = null, byte[]? png = null);
     public abstract void ClearHistory();
     public abstract bool IsCloud { get; }
+    public virtual void SeedHistory(IReadOnlyList<(string Role, string Text)> messages) { }
 
     /// <summary>Remove every saved conversation context (used by "New chat").</summary>
     public static void DeleteSavedContexts()
@@ -81,6 +93,8 @@ public abstract class LlmClientBase : ILlm
     protected string SystemPrompt() =>
         $"You are {AppSettings.Current.AssistantName}, a concise assistant running on the user's Windows PC. " +
         UserLine() +
+        "You were made by Elanchezhiyan P. You are not Gemini, Qwen or any other model: those are only the engine behind you. If asked who made you, say Elanchezhiyan P; never say Google or another company made you. " +
+        "Do not mention the underlying model unless the user asks which model you use. " +
         "Use the provided tools to carry out requests. If a request is ambiguous, ask. " +
         "Never claim an action succeeded unless the tool result says so. " +
         "Replies may be read aloud, so keep them short and use plain sentences; light markdown is fine. " +

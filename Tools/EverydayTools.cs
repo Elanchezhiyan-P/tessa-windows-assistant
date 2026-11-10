@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using Microsoft.VisualBasic.FileIO;
 using Microsoft.Win32;
+using WinCompanion.Services;
 using static WinCompanion.Tools.ToolSchema;
 
 namespace WinCompanion.Tools;
@@ -224,9 +225,12 @@ internal static class EverydayTools
                 if (File.Exists(destination) || Directory.Exists(destination))
                     return Task.FromResult($"{destination} already exists; nothing was moved.");
 
-                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                var parent = Path.GetDirectoryName(destination)!;
+                var created = Directory.Exists(parent) ? [] : new List<string> { parent };
+                Directory.CreateDirectory(parent);
                 if (isFolder) Directory.Move(source, destination);
                 else File.Move(source, destination);
+                UndoLog.Shared.Record($"move {Path.GetFileName(source)}", [new UndoMove(source, destination)], created);
                 return Task.FromResult($"Moved to {destination}");
             });
 

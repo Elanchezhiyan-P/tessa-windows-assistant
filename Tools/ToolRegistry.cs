@@ -13,6 +13,11 @@ public interface ITool
     /// <summary>True if the user must approve this call (anything destructive or arbitrary).</summary>
     bool NeedsConfirmation(JsonObject args);
     Task<string> ExecuteAsync(JsonObject args);
+
+    /// <summary>
+    /// What the approval card should say instead of the raw arguments, for example "Delete 1.4 GB of temporary files". Null shows the arguments.
+    /// </summary>
+    string? ConfirmationDetail(JsonObject args) => null;
 }
 
 /// <summary>The stores and services some tools need beyond the basics.</summary>
@@ -30,6 +35,9 @@ public sealed class ToolRegistry
     }
 
     public ITool? Find(string name) => _tools.GetValueOrDefault(name);
+
+    /// <summary>Every tool's name, in the usual order. Used to tell the planner what she can do.</summary>
+    public IReadOnlyList<string> Names() => _tools.Keys.ToList();
 
     public JsonArray Declarations()
     {

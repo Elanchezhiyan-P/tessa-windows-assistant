@@ -16,7 +16,7 @@ internal static class TypingIndicator
             var dot = new System.Windows.Shapes.Ellipse
             {
                 Width = 7, Height = 7, Margin = new Thickness(i == 0 ? 0 : 5, 0, 0, 0),
-                Fill = new SolidColorBrush(Color.FromRgb(0xC9, 0xCC, 0xDA)), Opacity = 0.35
+                Fill = ThemeCatalog.PaletteBrush("Muted"), Opacity = 0.35
             };
             dot.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.25, 1, TimeSpan.FromMilliseconds(520))
             {
@@ -30,7 +30,7 @@ internal static class TypingIndicator
 
         var bubble = new Border
         {
-            Background = new SolidColorBrush(Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF)),
+            Background = ThemeCatalog.PaletteBrush("AssistantBubble"),
             CornerRadius = new CornerRadius(16),
             Padding = new Thickness(16, 13, 16, 13),
             Margin = new Thickness(0, 4, 40, 4),

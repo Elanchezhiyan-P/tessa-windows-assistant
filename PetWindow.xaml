@@ -14,14 +14,14 @@
         <!-- Speech bubble: a rounded card with a small tail pointing at the character -->
         <StackPanel x:Name="BubbleHost" Grid.Row="0" Opacity="0" Visibility="Collapsed"
                     HorizontalAlignment="Center" VerticalAlignment="Bottom">
-            <Border x:Name="Bubble" Background="#F2191A1E" BorderBrush="#66FFFFFF" BorderThickness="1"
+            <Border x:Name="Bubble" Background="{DynamicResource WindowBack}" BorderBrush="{DynamicResource Stroke}" BorderThickness="1"
                     CornerRadius="14" Padding="14,12" MaxWidth="300" MinWidth="200">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="16" ShadowDepth="2" Opacity="0.45" />
                 </Border.Effect>
                 <StackPanel>
-                    <TextBlock Text="⏰  Reminder" Foreground="{StaticResource Accent}" FontSize="12" FontWeight="SemiBold" />
-                    <TextBlock x:Name="MessageText" Foreground="{StaticResource Fg}" FontSize="15"
+                    <TextBlock Text="⏰  Reminder" Foreground="{DynamicResource Accent}" FontSize="12" FontWeight="SemiBold" />
+                    <TextBlock x:Name="MessageText" Foreground="{DynamicResource Fg}" FontSize="15"
                                TextWrapping="Wrap" Margin="0,6,0,12" MaxHeight="80" TextTrimming="CharacterEllipsis" />
                     <StackPanel Orientation="Horizontal">
                         <Button x:Name="DoneButton" Style="{StaticResource PrimaryButton}" Content="Done" Click="Done_Click" />
@@ -30,7 +30,7 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
-            <Polygon x:Name="Tail" Points="0,0 18,0 9,10" Fill="#F2191A1E" HorizontalAlignment="Center" />
+            <Polygon x:Name="Tail" Points="0,0 18,0 9,10" Fill="{DynamicResource WindowBack}" HorizontalAlignment="Center" />
         </StackPanel>
 
         <Image x:Name="Sprite" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Bottom"

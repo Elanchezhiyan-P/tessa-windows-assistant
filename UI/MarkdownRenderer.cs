@@ -19,9 +19,9 @@ internal static class MarkdownRenderer
     private static readonly Regex HeadingPattern = new(@"^(#{1,3})\s+(.*)$", RegexOptions.Compiled);
     private static readonly Regex ListPattern = new(@"^\s*(?<m>[-*•]|\d+\.)\s+(?<t>.*)$", RegexOptions.Compiled);
 
-    private static readonly Brush CodeBackground = Frozen("#33000000");
-    private static readonly Brush InlineCodeBackground = Frozen("#33FFFFFF");
-    private static readonly Brush LinkBrush = Frozen("#8FB0FF");
+    private static Brush CodeBackground => ThemeCatalog.PaletteBrush("CodeBack");
+    private static Brush InlineCodeBackground => ThemeCatalog.PaletteBrush("InlineCodeBack");
+    private static Brush LinkBrush => ThemeCatalog.PaletteBrush("LinkFg");
     private static readonly FontFamily Mono = new("Cascadia Mono, Consolas");
 
     public static StackPanel Render(string markdown, Brush foreground)
@@ -33,7 +33,9 @@ internal static class MarkdownRenderer
         void Flush()
         {
             if (paragraph.Count == 0) return;
-            panel.Children.Add(TextBlockFor(string.Join("\n", paragraph), foreground, 14, FontWeights.Normal, new Thickness(0, 0, 0, 6)));
+            // Text straight after a list needs some air above it, or it looks like one more item.
+            var afterList = panel.Children.Count > 0 && panel.Children[^1] is Grid;
+            panel.Children.Add(TextBlockFor(string.Join("\n", paragraph), foreground, 14, FontWeights.Normal, new Thickness(0, afterList ? 8 : 0, 0, 6)));
             paragraph.Clear();
         }
 
@@ -55,7 +57,8 @@ internal static class MarkdownRenderer
             {
                 Flush();
                 var size = heading.Groups[1].Length switch { 1 => 18.0, 2 => 16.0, _ => 15.0 };
-                panel.Children.Add(TextBlockFor(heading.Groups[2].Value, foreground, size, FontWeights.SemiBold, new Thickness(0, 4, 0, 4)));
+                var afterList = panel.Children.Count > 0 && panel.Children[^1] is Grid;
+                panel.Children.Add(TextBlockFor(heading.Groups[2].Value, foreground, size, FontWeights.SemiBold, new Thickness(0, afterList ? 10 : 4, 0, 4)));
                 continue;
             }
 
@@ -91,11 +94,12 @@ internal static class MarkdownRenderer
 
     private static UIElement ListItem(string marker, string text, Brush foreground)
     {
-        var grid = new Grid { Margin = new Thickness(6, 0, 0, 3) };
+        // Close to the left edge and tightly spaced, so a list of a dozen short items reads as a list and not as a wall.
+        var grid = new Grid { Margin = new Thickness(2, 0, 0, 1) };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-        var bullet = new TextBlock { Text = marker, Foreground = foreground, FontSize = 14, Margin = new Thickness(0, 0, 8, 0) };
+        var bullet = new TextBlock { Text = marker, Foreground = foreground, FontSize = 14, Margin = new Thickness(0, 0, 7, 0) };
         var body = TextBlockFor(text, foreground, 14, FontWeights.Normal, new Thickness());
         Grid.SetColumn(body, 1);
         grid.Children.Add(bullet);
@@ -147,12 +151,5 @@ internal static class MarkdownRenderer
             position = m.Index + m.Length;
         }
         if (position < text.Length) inlines.Add(new Run(text[position..]));
-    }
-
-    private static SolidColorBrush Frozen(string hex)
-    {
-        var brush = (SolidColorBrush)new BrushConverter().ConvertFromString(hex)!;
-        brush.Freeze();
-        return brush;
     }
 }

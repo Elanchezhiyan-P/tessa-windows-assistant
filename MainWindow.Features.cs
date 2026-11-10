@@ -21,6 +21,10 @@ public partial class MainWindow
     private static readonly Regex ClearClipboardRequest = new(
         @"^\W*(?:please\s+)?(?:clear|delete|erase)\s+(?:my\s+|the\s+)?clipboard\s+history\W*$", Opts);
 
+    private static readonly Regex SystemRequest = new(
+        @"^\W*(?:please\s+)?(?:(?:what(?:'s|\s+is|\s+are)|show(?:\s+me)?|tell\s+me|give\s+me)\s+)?(?:my\s+|the\s+|this\s+)?(?:pc|computer|laptop|system|hardware)\s+(?:specs?|specifications|details|info|information|configuration)\W*$" +
+        @"|^\W*(?:system|pc|hardware)\s+(?:specs?|info)\W*$", Opts);
+
     private RoutineStore _routines = null!;
     private FocusService _focus = null!;
     private ClipboardWatcher? _clipboardWatcher;
@@ -59,8 +63,14 @@ public partial class MainWindow
         if (BriefingRequest.IsMatch(input)) return await BriefingService.BuildAsync(_reminders, _appSettings);
         if (ExportRequest.IsMatch(input)) return ChatExport.Export(null, _appSettings.AssistantName);
         if (ClearClipboardRequest.IsMatch(input)) return $"Cleared {ClipboardStore.Clear()} item(s) from the clipboard history.";
+        if (SystemRequest.IsMatch(input)) return SystemReport();
+        if (AboutTessa.IsAboutQuestion(input)) return AboutText();
+        if (AboutTessa.IsFeaturesQuestion(input)) return AboutTessa.Features(_appSettings.AssistantName);
         return null;
     }
+
+    private string AboutText() => AboutTessa.About(_appSettings.AssistantName,
+        _appSettings.BrainDescription);
 
     private void ClearClipboard_Click(object sender, RoutedEventArgs e) =>
         SettingsNote.Text = $"Cleared {ClipboardStore.Clear()} item(s) from the clipboard history.";
@@ -86,6 +96,9 @@ public partial class MainWindow
     {
         if (FocusService.IsFocusReminder(reminder.Message)) return false;
         if (_focus.WorkEnds(DateTime.Now) is not { } end) return false;
+        // A repeating nudge that comes round several times during one work period should be said once, at the break.
+        if (NudgeService.IsNudge(reminder.Message) && _reminders.Pending().Any(r => r.Message == reminder.Message && r.Repeat is null))
+            return true;
         _reminders.Add(reminder.Message, end.AddSeconds(3));
         return true;
     }

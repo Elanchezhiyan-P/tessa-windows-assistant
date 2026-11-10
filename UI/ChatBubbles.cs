@@ -9,12 +9,21 @@ namespace WinCompanion.UI;
 /// <summary>Builds the visual for one chat message.</summary>
 internal static class ChatBubbles
 {
-    private static readonly Brush Text = Frozen("#F0F0F4");
-    private static readonly Brush Muted = Frozen("#9A9DAD");
-    private static readonly Brush UserBubble = Frozen("#5B7BF5");
-    private static readonly Brush AssistantBubble = Frozen("#26FFFFFF");
-    private static readonly Brush ErrorText = Frozen("#FFA9A9");
-    private static readonly Brush ErrorBubble = Frozen("#40FF5A5A");
+    private static Brush Text => ThemeCatalog.PaletteBrush("Fg");
+    private static Brush Muted => ThemeCatalog.PaletteBrush("Muted");
+    // The user's bubbles follow the accent colour, so a new theme shows up in the next message.
+    private static Brush UserBubble
+    {
+        get
+        {
+            var brush = new SolidColorBrush(ThemeCatalog.UserBubble(ThemeCatalog.CurrentAccent));
+            brush.Freeze();
+            return brush;
+        }
+    }
+    private static Brush AssistantBubble => ThemeCatalog.PaletteBrush("AssistantBubble");
+    private static Brush ErrorText => ThemeCatalog.PaletteBrush("ErrorText");
+    private static Brush ErrorBubble => ThemeCatalog.PaletteBrush("ErrorBubble");
 
     public static FrameworkElement Create(ChatEntry entry, bool animate)
     {
@@ -42,19 +51,19 @@ internal static class ChatBubbles
         return element;
     }
 
-    // A bubble with a copy button that appears while the pointer is over it.
+    /// <summary>Set by the window: pins or unpins a saved message and returns whether it is now pinned.</summary>
+    public static Func<long, bool>? TogglePin { get; set; }
+
+    // A bubble with a copy and a pin button, shown while the pointer is over it (the pin stays visible once set).
     private static Border Bubble(ChatEntry entry, UIElement content, Brush background, HorizontalAlignment align)
     {
         var copy = new Button
         {
             Style = (Style)Application.Current.FindResource("IconButton"),
-            Content = "",
+            Content = "\uE8C8", // Copy
             Width = 24,
             Height = 24,
             FontSize = 11,
-            Opacity = 0,
-            VerticalAlignment = VerticalAlignment.Top,
-            HorizontalAlignment = HorizontalAlignment.Right,
             ToolTip = "Copy"
         };
         copy.Click += (_, _) =>
@@ -63,21 +72,58 @@ internal static class ChatBubbles
             catch (System.Runtime.InteropServices.COMException) { /* clipboard busy */ }
         };
 
-        if (content is FrameworkElement fe) fe.Margin = new Thickness(fe.Margin.Left, fe.Margin.Top, 22, fe.Margin.Bottom);
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Top,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Opacity = 0
+        };
+
+        Button? pin = null;
+        var pinned = entry.Pinned;
+        if (entry.Id > 0)
+        {
+            pin = new Button
+            {
+                Style = (Style)Application.Current.FindResource("IconButton"),
+                Width = 24,
+                Height = 24,
+                FontSize = 11
+            };
+            void ShowPin()
+            {
+                pin.Content = pinned ? "\uE77A" : "\uE718"; // unpin / pin
+                pin.ToolTip = pinned ? "Unpin" : "Pin this message";
+                pin.Foreground = pinned ? ThemeCatalog.PaletteBrush("Accent") : ThemeCatalog.PaletteBrush("Muted");
+            }
+            ShowPin();
+            pin.Click += (_, _) =>
+            {
+                pinned = TogglePin?.Invoke(entry.Id) ?? pinned;
+                ShowPin();
+            };
+            buttons.Children.Add(pin);
+        }
+        buttons.Children.Add(copy);
+
+        if (content is FrameworkElement fe) fe.Margin = new Thickness(fe.Margin.Left, fe.Margin.Top, pin is null ? 22 : 46, fe.Margin.Bottom);
 
         var bubble = new Border
         {
-            Child = new Grid { Children = { content, copy } },
+            Child = new Grid { Children = { content, buttons } },
             Background = background,
             CornerRadius = new CornerRadius(14),
             Padding = new Thickness(14, 9, 8, 5),
             Margin = new Thickness(0, 4, 0, 4),
             HorizontalAlignment = align,
             MaxWidth = 500,
-            ToolTip = entry.Time.ToString("g")
+            ToolTip = entry.Time.ToString("g"),
+            Tag = entry.Id
         };
-        bubble.MouseEnter += (_, _) => copy.Opacity = 1;
-        bubble.MouseLeave += (_, _) => copy.Opacity = 0;
+        buttons.Opacity = pinned ? 1 : 0;
+        bubble.MouseEnter += (_, _) => buttons.Opacity = 1;
+        bubble.MouseLeave += (_, _) => buttons.Opacity = pinned ? 1 : 0;
         return bubble;
     }
 
@@ -90,12 +136,5 @@ internal static class ChatBubbles
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
         });
-    }
-
-    private static SolidColorBrush Frozen(string hex)
-    {
-        var brush = (SolidColorBrush)new BrushConverter().ConvertFromString(hex)!;
-        brush.Freeze();
-        return brush;
     }
 }

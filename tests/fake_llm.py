@@ -49,6 +49,30 @@ SCRIPTS = {
     "listfiles":  lambda: call("find_files", {"folder": SCRATCH, "pattern": "*.txt"}),
 }
 
+# Agent mode: the plan the "model" writes for a goal, and the tool call each plan step makes (matched by words in the step).
+PLANS = {
+    "stop-test": ["Move the agent file to a new name", "Create the should-not-exist folder", "Tell me it is done"],
+    "default":   ["Create an agent folder", "Save an agent note", "Tell me it is done"],
+}
+STEP_SCRIPTS = [
+    ("agent folder",      lambda: call("create_folder", {"path": SCRATCH + "\\agent-folder"})),
+    ("agent note",        lambda: call("add_note", {"text": "fake-llm agent note"})),
+    ("agent file",        lambda: call("move_or_rename", {"source": SCRATCH + "\\agent-move.txt", "destination": SCRATCH + "\\agent-moved.txt"})),
+    ("should-not-exist",  lambda: call("create_folder", {"path": SCRATCH + "\\should-not-exist"})),
+]
+
+def agent_plan(text):
+    key = next((k for k in PLANS if k in text), "default")
+    return json.dumps(PLANS[key])
+
+def agent_step(user):
+    """The reply to 'This is step N of M ... Do only this step now: <step>': a tool call, or just a short answer."""
+    step = user.split("Do only this step now:", 1)[1].splitlines()[0].strip().lower()
+    for words, script in STEP_SCRIPTS:
+        if words in step:
+            return script()
+    return {"role": "assistant", "content": "DONE: " + step}
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
 
@@ -81,6 +105,8 @@ class Handler(BaseHTTPRequestHandler):
         if not has_tools:                               # a one-shot request made by a tool (clipboard rewrite, screenshot question)
             content = msgs[-1]["content"]
             text = content if isinstance(content, str) else " ".join(p.get("text", "") for p in content)
+            if "You plan tasks for a Windows PC assistant" in text:          # agent mode asking for a plan
+                return self._send(200, {"choices": [{"index": 0, "message": {"role": "assistant", "content": agent_plan(text)}, "finish_reason": "stop"}]})
             reply = "SHORT TEXT" if "shorter" in text.lower() else "FAKE ANSWER about the image"
             return self._send(200, {"choices": [{"index": 0, "message": {"role": "assistant", "content": reply}, "finish_reason": "stop"}]})
 
@@ -90,7 +116,10 @@ class Handler(BaseHTTPRequestHandler):
 
         user = next(m["content"] for m in reversed(msgs) if m["role"] == "user")
         name = user.split()[1] if user.upper().startswith("TEST ") and len(user.split()) > 1 else ""
-        message = SCRIPTS[name]() if name in SCRIPTS else {"role": "assistant", "content": "UNSCRIPTED: " + user}
+        if user.startswith("This is step") and "Do only this step now:" in user:    # one step of an approved agent plan
+            message = agent_step(user)
+        else:
+            message = SCRIPTS[name]() if name in SCRIPTS else {"role": "assistant", "content": "UNSCRIPTED: " + user}
         self._send(200, {"choices": [{"index": 0, "message": message, "finish_reason": "tool_calls" if "tool_calls" in message else "stop"}]})
 
 ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()

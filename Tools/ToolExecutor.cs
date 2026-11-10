@@ -22,7 +22,14 @@ public sealed class ToolExecutor(ToolRegistry tools, Func<string, Task<bool>> co
         var needsConfirmation = tool.NeedsConfirmation(args);
         // Show a PowerShell command as plain text rather than escaped JSON.
         var detail = args["command"] is JsonValue v && v.TryGetValue<string>(out var command) ? command : args.ToJsonString();
-        var approved = !needsConfirmation || await confirm($"{name}\n{detail}");
+        var approved = true;
+        if (needsConfirmation)
+        {
+            string? described = null;
+            try { described = tool.ConfirmationDetail(args); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { /* fall back to the raw arguments */ }
+            approved = await confirm(described is null ? $"{name}\n{detail}" : $"{name}\n{described}");
+        }
 
         string result;
         if (!approved)

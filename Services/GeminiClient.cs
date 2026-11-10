@@ -27,7 +27,7 @@ public sealed class GeminiClient : LlmClientBase
 
     // ---- Chat with tools -------------------------------------------------------------------
 
-    public override async Task<string> SendAsync(string userText)
+    public override async Task<string> SendAsync(string userText, IProgress<string>? partial = null, CancellationToken cancel = default)
     {
         var startCount = _history.Count;
         _history.Add(new JsonObject
@@ -40,6 +40,9 @@ public sealed class GeminiClient : LlmClientBase
         {
             for (var round = 0; round < MaxToolRounds; round++)
             {
+                cancel.ThrowIfCancellationRequested();
+                partial?.Report(""); // a new round: whatever was shown before belongs to the step that just ended
+
                 var content = await PostAsync(new JsonObject
                 {
                     ["systemInstruction"] = new JsonObject
@@ -48,7 +51,7 @@ public sealed class GeminiClient : LlmClientBase
                     },
                     ["contents"] = _history.DeepClone(),
                     ["tools"] = new JsonArray(new JsonObject { ["functionDeclarations"] = Tools.Declarations() })
-                });
+                }, partial, cancel);
                 _history.Add(content.DeepClone());
 
                 var parts = content["parts"]?.AsArray() ?? new JsonArray();
@@ -112,9 +115,10 @@ public sealed class GeminiClient : LlmClientBase
 
     // ---- HTTP, retries and friendly errors ----------------------------------------------------
 
-    private async Task<JsonObject> PostAsync(JsonObject body)
+    private async Task<JsonObject> PostAsync(JsonObject body, IProgress<string>? partial = null, CancellationToken cancel = default)
     {
-        var url = GeminiApi.GenerateUrl;
+        var streaming = partial is not null;
+        var url = streaming ? GeminiApi.StreamUrl : GeminiApi.GenerateUrl;
 
         for (var attempt = 0; ; attempt++)
         {
@@ -122,14 +126,26 @@ public sealed class GeminiClient : LlmClientBase
             string text;
             try
             {
-                resp = await _http.PostAsJsonAsync(url, body);
-                text = await resp.Content.ReadAsStringAsync();
+                using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = JsonContent.Create(body) };
+                resp = await _http.SendAsync(request, streaming ? HttpCompletionOption.ResponseHeadersRead : HttpCompletionOption.ResponseContentRead, cancel);
+
+                if (streaming && resp.IsSuccessStatusCode)
+                {
+                    using (resp)
+                    {
+                        var builder = new GeminiMessageBuilder();
+                        await foreach (var data in ServerSentEvents.ReadAsync(await resp.Content.ReadAsStreamAsync(cancel), cancel))
+                            builder.Add(data, soFar => partial!.Report(soFar));
+                        return builder.Build();
+                    }
+                }
+                text = await resp.Content.ReadAsStringAsync(cancel);
             }
-            catch (TaskCanceledException)
+            catch (TaskCanceledException) when (!cancel.IsCancellationRequested)
             {
                 throw new LlmException("Gemini took too long to answer. Try again.");
             }
-            catch (HttpRequestException ex)
+            catch (Exception ex) when (ex is HttpRequestException or IOException)
             {
                 throw new LlmException($"Couldn't reach Gemini (offline?): {ex.Message}");
             }
@@ -150,7 +166,7 @@ public sealed class GeminiClient : LlmClientBase
 
                 if (transient && !dailyQuota && attempt < MaxRetries && wait <= MaxAutoWait)
                 {
-                    await Task.Delay(wait + TimeSpan.FromMilliseconds(500));
+                    await Task.Delay(wait + TimeSpan.FromMilliseconds(500), cancel);
                     continue;
                 }
                 throw new LlmException(GeminiApi.Describe(resp.StatusCode, text, retryAfter));
@@ -165,6 +181,19 @@ public sealed class GeminiClient : LlmClientBase
     public override void ClearHistory()
     {
         _history.Clear();
+        SaveHistory();
+    }
+
+    public override void SeedHistory(IReadOnlyList<(string Role, string Text)> messages)
+    {
+        _history.Clear();
+        foreach (var (role, text) in messages)
+            _history.Add(new JsonObject
+            {
+                ["role"] = role == "assistant" ? "model" : "user",
+                ["parts"] = new JsonArray(new JsonObject { ["text"] = text })
+            });
+        TrimHistory();
         SaveHistory();
     }
 

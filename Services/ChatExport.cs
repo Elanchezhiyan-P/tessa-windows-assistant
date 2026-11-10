@@ -40,14 +40,14 @@ public static class ChatExport
     }
 
     /// <summary>The whole saved conversation, or only the messages containing <paramref name="query"/> when one is given.</summary>
-    public static string Export(string? query, string assistantName)
+    public static string Export(string? query, string assistantName, long? conversation = null, string? chatTitle = null)
     {
         IReadOnlyList<ChatEntry> entries;
         string title;
         if (string.IsNullOrWhiteSpace(query))
         {
-            entries = ChatStore.ReadAll();
-            title = $"Conversation with {assistantName}";
+            entries = ChatStore.ReadAll(conversation);
+            title = string.IsNullOrEmpty(chatTitle) ? $"Conversation with {assistantName}" : $"{chatTitle} · conversation with {assistantName}";
         }
         else
         {

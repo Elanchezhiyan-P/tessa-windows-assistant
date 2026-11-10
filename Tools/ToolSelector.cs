@@ -58,6 +58,10 @@ internal static class ToolSelector
             ["search_history"]),
         (new(@"\bkill\b|force quit|end task|not responding|stop (the )?process", Opts),
             ["kill_process"]),
+        (new(@"start ?up|boot|start(s|ed|ing)? (up )?with windows|auto-?start|launch(es)? (at|on) (start|sign|log)|run(s)? at (start|log)|temp(orary)? files|clean ?up|junk|free up|clear (the )?cache|slow|sluggish|laggy|\blag\b|performance|speed up", Opts),
+            ["list_startup_apps", "set_startup_app", "scan_temp_files", "clean_temp_files", "why_is_my_pc_slow", "get_system_info"]),
+        (new(@"\bpdf\b|\bdocx?\b|word doc|excel|spreadsheet|powerpoint|slides?|document|contract|invoice|receipt|resume|\bcv\b|report|my files|in my (files|folders|documents)|which file|what does .{0,40} say|according to", Opts),
+            ["search_my_files", "read_document", "find_files"]),
     ];
 
     /// <param name="request">The user's message (and the one before it, so a short "yes, do it" still has context).</param>

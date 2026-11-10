@@ -228,6 +228,68 @@ $r = Ask 'TEST closewin' -card allow
 Start-Sleep 2
 Check 'close_window: Allow closes the window' ($r.Card -and -not (Test-Windows | Select-Object -First 1)) $r.Reply
 
+# ---- agent mode: the plan card, Run, Cancel and Stop --------------------------------------------------------------
+Write-Host "`nAgent mode...`n" -ForegroundColor Cyan
+
+function Get-Main { foreach ($c in (ByProcess $app.Id)) { if (Find $c 'AutomationIdProperty' 'Input') { return $c } } }
+function Wait-Until([scriptblock]$condition, [int]$seconds = 60) {
+    $end = (Get-Date).AddSeconds($seconds)
+    while ((Get-Date) -lt $end) { $v = & $condition; if ($v) { return $v }; Start-Sleep -Milliseconds 400 }
+}
+# The saved chat, one object per message. Windows PowerShell's ConvertFrom-Json can hand back the whole array as a single object,
+# so it is flattened here: without that, a pattern would "match" the array and every check built on it would pass.
+function Chat-Rows {
+    $rows = try { python "$PSScriptRoot\read_transcript.py" | ConvertFrom-Json } catch { @() }
+    foreach ($row in @($rows)) { foreach ($message in @($row)) { $message } }
+}
+# The newest message whose text matches (always a single message, never the whole chat).
+function Chat-Has([string]$pattern) {
+    Chat-Rows | Where-Object { ([string]$_.Text) -match $pattern } | Select-Object -Last 1
+}
+function Button-Named([string]$name) {
+    $m = Get-Main; if (-not $m) { return }
+    $b = Find $m 'NameProperty' $name
+    if ($b -and -not $b.Current.IsOffscreen) { $b }
+}
+function Start-Agent([string]$goal) {
+    $m = Get-Main
+    (Find $m 'AutomationIdProperty' 'Input').GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue("/agent $goal")
+    (Find $m 'AutomationIdProperty' 'SendButton').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Until { Button-Named 'Run plan' } 40
+}
+function Press-Button($button) { $button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
+
+Set-Content "$Scratch\agent-move.txt" 'agent file'
+
+# Cancel: the plan is shown, and pressing Cancel does nothing at all.
+$run = Start-Agent 'agent cancel-run please'
+Check 'agent: a plan card with Run plan and Cancel appears' ([bool]$run -and [bool](Button-Named 'Cancel'))
+if ($run) { Press-Button (Button-Named 'Cancel') }
+Check 'agent: Cancel runs nothing' ((Wait-Until { Chat-Has 'Plan cancelled' } 15) -and -not (Test-Path "$Scratch\agent-folder"))
+
+# Run to the end: three steps, each an ordinary request, each leaving a real effect.
+$run = Start-Agent 'agent full run please'
+if ($run) { Press-Button $run }
+$done = Wait-Until { Chat-Has 'Finished: 3 of 3' } 90
+Check 'agent: Run plan works through every step' ([bool]$done -and $done.Text -is [string] -and $done.Text -match "Plan: agent full run") $(if ($done) { ($done.Text -split "`n")[0] })
+Check 'agent: step 1 made the folder' (Test-Path "$Scratch\agent-folder")
+Check 'agent: step 2 saved the note' ((Test-Path $notes) -and ((Get-Content $notes) -match 'fake-llm agent note'))
+# Characters are built from their codes: Windows PowerShell reads a script without a byte-order mark as ANSI and would garble them.
+$tick = [string][char]0x2713; $dash = [string][char]0x2013
+Check 'agent: the record lists each step as done' ($done.Text -is [string] -and $done.Text -match "$tick 1\." -and $done.Text -match "$tick 2\." -and $done.Text -match "$tick 3\.") $(if ($done) { [string]$done.Text -replace "`n", ' | ' })
+
+# Stop: the first step needs approval; pressing Stop while the card is up turns it away and skips the rest.
+$run = Start-Agent 'agent stop-test please'
+if ($run) { Press-Button $run }
+$allow = Wait-Until { Button-Named 'Allow' } 60
+Check 'agent: a risky step still shows its approval card' ([bool]$allow)
+$stop = Wait-Until { Button-Named 'Stop after this step' } 10
+Check 'agent: a Stop button is shown while it runs' ([bool]$stop)
+if ($stop) { Press-Button $stop }
+$stopped = Wait-Until { Chat-Has 'Stopped by you' } 60
+Check 'agent: Stop declines the waiting approval and skips the rest' ([bool]$stopped -and (Test-Path "$Scratch\agent-move.txt") -and -not (Test-Path "$Scratch\agent-moved.txt") -and -not (Test-Path "$Scratch\should-not-exist")) $(if ($stopped) { ($stopped.Text -split "`n" | Select-Object -Last 1) })
+Check 'agent: the stopped plan marks later steps as skipped' ($stopped.Text -is [string] -and $stopped.Text -match "$dash 2\." -and $stopped.Text -match "$dash 3\.") $(if ($stopped) { [string]$stopped.Text -replace "`n", ' | ' })
+
 }
 catch { Write-Host "TEST RUN ABORTED: $($_.Exception.Message)`n$($_.InvocationInfo.PositionMessage)" -ForegroundColor Red; $results.Add([pscustomobject]@{ Test = "run"; Result = "FAIL"; Detail = $_.Exception.Message }) }
 finally {
@@ -240,8 +302,12 @@ Start-Sleep 1
 Copy-Item "$backup\*" $data -Force                       # settings, chat, reminders, key: back exactly as they were
 if ($null -ne $notesBefore) { Set-Content $notes $notesBefore }
 elseif (Test-Path $notes) { (Get-Content $notes) | Where-Object { $_ -notmatch 'fake-llm test note' } | Set-Content $notes }
+# Files that didn't exist before the run (the app writes some of its own) are removed, so the data folder ends up as it began.
 $leftover = (Get-ChildItem $data -File).Name | Where-Object { $_ -notin $existed }
-if ($leftover) { Write-Host "`nFiles the test created in $data (delete them): $($leftover -join ', ')" -ForegroundColor Yellow }
+foreach ($name in $leftover) { Remove-Item (Join-Path $data $name) -Force -ErrorAction SilentlyContinue }
+if ($leftover) { Write-Host "`nRemoved files the run created in ${data}: $($leftover -join ', ')" -ForegroundColor DarkGray }
+# The backup holds a copy of the user's data (including the encrypted API key), so it must not be left lying around in %TEMP%.
+Remove-Item -LiteralPath $backup -Recurse -Force -ErrorAction SilentlyContinue
 
 $failed = @($results | Where-Object Result -eq 'FAIL').Count
 Write-Host "`n$($results.Count - $failed) passed, $failed failed" -ForegroundColor $(if ($failed) { 'Red' } else { 'Green' })

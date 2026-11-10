@@ -89,7 +89,70 @@ internal static class Database
                 created TEXT NOT NULL,
                 repeat  TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS index_folders (
+                path  TEXT PRIMARY KEY COLLATE NOCASE,
+                added TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS index_files (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                path     TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                folder   TEXT NOT NULL COLLATE NOCASE,
+                size     INTEGER NOT NULL,
+                modified TEXT NOT NULL,
+                indexed  TEXT NOT NULL,
+                chunks   INTEGER NOT NULL,
+                note     TEXT
+            );
+            CREATE INDEX IF NOT EXISTS index_files_folder ON index_files(folder);
+            CREATE TABLE IF NOT EXISTS index_chunks (
+                id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_id INTEGER NOT NULL,
+                ordinal INTEGER NOT NULL,
+                text    TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS index_chunks_file ON index_chunks(file_id);
+            CREATE TABLE IF NOT EXISTS agent_plans (
+                name    TEXT PRIMARY KEY COLLATE NOCASE,
+                goal    TEXT NOT NULL,
+                steps   TEXT NOT NULL,
+                created TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS conversations (
+                id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                title   TEXT NOT NULL,
+                created TEXT NOT NULL,
+                updated TEXT NOT NULL
+            );
+            CREATE VIRTUAL TABLE IF NOT EXISTS index_fts USING fts5(text, content='index_chunks', content_rowid='id');
+            CREATE TRIGGER IF NOT EXISTS index_chunks_ai AFTER INSERT ON index_chunks BEGIN
+                INSERT INTO index_fts(rowid, text) VALUES (new.id, new.text);
+            END;
+            CREATE TRIGGER IF NOT EXISTS index_chunks_ad AFTER DELETE ON index_chunks BEGIN
+                INSERT INTO index_fts(index_fts, rowid, text) VALUES ('delete', old.id, old.text);
+            END;
             """);
+
+        // Named chats and pinned messages (added in 2.2): existing messages become the first chat.
+        AddColumnIfMissing(connection, "messages", "conversation", "INTEGER NOT NULL DEFAULT 1");
+        AddColumnIfMissing(connection, "messages", "pinned", "INTEGER NOT NULL DEFAULT 0");
+        using (var first = connection.CreateCommand())
+        {
+            first.CommandText = "INSERT OR IGNORE INTO conversations(id, title, created, updated) VALUES (1, $title, $now, $now)";
+            first.Parameters.AddWithValue("$title", DefaultChatTitle);
+            first.Parameters.AddWithValue("$now", ToText(DateTime.Now));
+            first.ExecuteNonQuery();
+        }
+        Execute(connection, "CREATE INDEX IF NOT EXISTS messages_conversation ON messages(conversation, id);");
+    }
+
+    public const string DefaultChatTitle = "New chat";
+
+    private static void AddColumnIfMissing(SqliteConnection connection, string table, string column, string definition)
+    {
+        using var check = connection.CreateCommand();
+        check.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = '{column}'";
+        if (Convert.ToInt64(check.ExecuteScalar()) == 0) Execute(connection, $"ALTER TABLE {table} ADD COLUMN {column} {definition};");
     }
 
     public static void Execute(SqliteConnection connection, string sql)

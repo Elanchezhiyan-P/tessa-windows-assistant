@@ -55,7 +55,7 @@ internal sealed class ListeningIndicator : StackPanel
         _label = new TextBlock
         {
             Text = "Listening…", Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
-            FontSize = 14, Foreground = new SolidColorBrush(Color.FromRgb(0xC9, 0xCC, 0xDA))
+            FontSize = 14, Foreground = ThemeCatalog.PaletteBrush("Muted")
         };
         Children.Add(_label);
     }
