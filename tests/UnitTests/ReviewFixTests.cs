@@ -224,3 +224,37 @@ public class PrivateClipboardTests
     public void PrivateOrRichClipboardsAreLeftAlone(string format) =>
         Assert.False(SelectionCapture.SafeToBorrow(["UnicodeText", format]));
 }
+
+public class ShortUserNameRedactionTests
+{
+    [Fact]
+    public void AShortNameIsHiddenInPathsAndAfterUserWords()
+    {
+        var text = @"Crash in C:\Users\Al\AppData\x.log, opened by Al; account Al. Also D:/Al/notes and 'Al'.";
+        var clean = Diagnostics.Redact(text, null, "Al", "PC");
+        Assert.DoesNotContain(@"\Al\", clean);
+        Assert.DoesNotContain("/Al/", clean);
+        Assert.DoesNotContain("by Al", clean);
+        Assert.DoesNotContain("account Al", clean);
+        Assert.Contains("<user>", clean);
+    }
+
+    [Fact]
+    public void AShortNameDoesNotDamageOrdinaryWords()
+    {
+        var clean = Diagnostics.Redact("Alert: the album is all about Alabama and Al-Qaeda news", null, "Al", "PC");
+        Assert.Contains("Alert", clean);
+        Assert.Contains("album", clean);
+        Assert.Contains("all about Alabama", clean);
+    }
+
+    [Theory]
+    [InlineData("J")]
+    [InlineData("Jo")]
+    public void OneAndTwoLetterNamesAreHiddenInPaths(string name) =>
+        Assert.DoesNotContain(name + @"\", Diagnostics.Redact($@"C:\Users\{name}\Desktop\a.txt", null, name, "X"));
+
+    [Fact]
+    public void LongerNamesStillWorkAsBefore() =>
+        Assert.Equal("hello <user> and <pc>", Diagnostics.Redact("hello Elan and DESKTOP-ABC", null, "Elan", "DESKTOP-ABC"));
+}

@@ -32,7 +32,7 @@ public static class TourSteps
         ]),
         new("Make me yours", "Open Settings with the gear in the window's corner, or type /settings.",
         [
-            new("AI model", "Gemini (free key) or a local model that never leaves your PC"),
+            new("AI model", "Gemini, Claude, an OpenAI-compatible service, or a local model that never leaves your PC"),
             new("Look and alerts", "Colours, quiet hours, and warnings for low disk or battery"),
             new("You and her", "Her name, voice and speed, and what she remembers about you"),
             new("Safety", "She always asks before anything risky; you can see everything she did in the action log")

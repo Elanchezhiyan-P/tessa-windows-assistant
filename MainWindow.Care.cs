@@ -1,3 +1,4 @@
+using WinCompanion.UI;
 using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Controls;
@@ -32,8 +33,8 @@ public partial class MainWindow
     private async void SlowCheck_Click(object sender, RoutedEventArgs e)
     {
         SlowButton.IsEnabled = false;
-        SlowText.Text = "Checking for a few seconds…";
-        try { SlowText.Text = await PcCareTools.DiagnoseAsync(); }
+        InlineText.Set(SlowText, "Checking for a few seconds…");
+        try { InlineText.Set(SlowText, await PcCareTools.DiagnoseAsync()); }
         finally { SlowButton.IsEnabled = true; }
     }
 
@@ -93,10 +94,10 @@ public partial class MainWindow
 
     private async void CleanupScan_Click(object sender, RoutedEventArgs e)
     {
-        CleanupText.Text = "Looking…";
+        InlineText.Set(CleanupText, "Looking…");
         _cleanupArmed = false;
         var found = await Task.Run(() => TempCleanup.Scan());
-        CleanupText.Text = TempCleanup.Describe(found);
+        InlineText.Set(CleanupText, TempCleanup.Describe(found));
 
         var total = found.Sum(f => f.Bytes);
         CleanupRunButton.IsEnabled = total > 0;
@@ -115,11 +116,11 @@ public partial class MainWindow
 
         _cleanupArmed = false;
         CleanupRunButton.IsEnabled = false;
-        CleanupText.Text = "Cleaning…";
+        InlineText.Set(CleanupText, "Cleaning…");
         var result = await Task.Run(() => TempCleanup.Clean());
         var message = TempCleanup.Describe(result);
         _log.Write("clean_temp_files", new JsonObject(), "approved", message);
-        CleanupText.Text = message;
+        InlineText.Set(CleanupText, message);
         CleanupRunButton.Content = "Clean up";
     }
 
@@ -140,7 +141,7 @@ public partial class MainWindow
         }
         catch (SqliteException)
         {
-            IndexStatus.Text = "The index isn't available right now.";
+            InlineText.Set(IndexStatus, "The index isn't available right now.");
             return;
         }
 
@@ -181,7 +182,7 @@ public partial class MainWindow
             IndexList.Children.Add(row);
         }
 
-        IndexStatus.Text = _indexing ? "Reading your documents…" : FileIndex.DescribeStats(stats);
+        InlineText.Set(IndexStatus, _indexing ? "Reading your documents…" : FileIndex.DescribeStats(stats));
     }
 
     private void IndexAdd_Click(object sender, RoutedEventArgs e)

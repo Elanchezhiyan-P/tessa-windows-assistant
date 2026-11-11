@@ -23,6 +23,7 @@ public partial class MainWindow
     private void UpdateMiniTimer()
     {
         if (_miniTick is null) return;
+        UpdateDock();
         var now = DateTime.Now;
 
         var state = MiniTimerState.Hidden;

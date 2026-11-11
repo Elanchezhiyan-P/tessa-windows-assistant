@@ -49,6 +49,7 @@ public static class SlashCommands
         new("size", "/size [small|normal|large|larger]", "Make the window and its text smaller or larger"),
         new("backup", "/backup [file.zip]", "Save settings, memory, routines, reminders and notes to one file"),
         new("restore", "/restore [file.zip]", "Bring a backup back (adds to what you have; asks first)"),
+        new("float", "/float [on|off|reset]", "Shrink to a small floating button when you click another app"),
         new("timer", "/timer [on|off|reset]", "The small floating countdown for focus sessions and reminders"),
         new("quiet", "/quiet [on|off|22:00-07:00]", "Quiet hours: no sound, voice or pop-ups"),
         new("health", "/health [on|off]", "Drive space and battery now, and the low-space and low-battery warnings"),

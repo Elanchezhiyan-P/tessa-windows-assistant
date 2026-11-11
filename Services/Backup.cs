@@ -50,8 +50,17 @@ public static class Backup
 
     // ---- Create -------------------------------------------------------------------------------------
 
+    /// <summary>What <see cref="Inspect"/> and <see cref="Restore"/> report for a locked backup opened without its password.</summary>
+    public const string PasswordRequired = "This backup is locked with a password.";
+
+    private const long MaxBackupBytes = 64L * 1024 * 1024;
+
+    /// <summary>True when the file is a backup locked with a password.</summary>
+    public static bool IsLocked(string path) => BackupCrypto.IsEncryptedFile(path);
+
+    /// <param name="password">Locks the file with it (AES-256, see <see cref="BackupCrypto"/>). Empty or null saves a plain zip.</param>
     public static string Create(string zipPath, AppSettings settings, MemoryStore memory, RoutineStore routines, ReminderStore reminders, string notesPath,
-        PlanStore? plans = null)
+        PlanStore? plans = null, string? password = null, int iterations = BackupCrypto.DefaultIterations)
     {
         var temp = zipPath + ".tmp";
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(zipPath))!);
@@ -96,6 +105,8 @@ public static class Backup
 
                 if (File.Exists(notesPath)) Add(zip, "notes.md", File.ReadAllText(notesPath));
             }
+            if (!string.IsNullOrEmpty(password))
+                File.WriteAllBytes(temp, BackupCrypto.Encrypt(File.ReadAllBytes(temp), password, iterations));
             File.Move(temp, zipPath, overwrite: true);
         }
         finally { try { File.Delete(temp); } catch (IOException) { } }
@@ -114,12 +125,20 @@ public static class Backup
     private sealed record Contents(DateTime Created, string Version, JsonObject Settings, JsonArray Memories, JsonArray Routines, JsonArray Reminders, string Notes,
         JsonArray Plans);
 
-    private static Contents? Read(string zipPath, out string error)
+    private static Contents? Read(string zipPath, out string error, string? password = null)
     {
         error = "";
         try
         {
-            using var zip = ZipFile.OpenRead(zipPath);
+            if (new FileInfo(zipPath).Length > MaxBackupBytes) { error = "That file is too big to be one of my backups."; return null; }
+            var bytes = File.ReadAllBytes(zipPath);
+            if (BackupCrypto.IsEncrypted(bytes))
+            {
+                if (string.IsNullOrEmpty(password)) { error = PasswordRequired; return null; }
+                try { bytes = BackupCrypto.Decrypt(bytes, password); }
+                catch (InvalidDataException ex) { error = ex.Message; return null; }
+            }
+            using var zip = new ZipArchive(new MemoryStream(bytes), ZipArchiveMode.Read);
             if (zip.Entries.Count > 20) { error = "This does not look like a backup of mine."; return null; }
 
             var manifest = Parse(zip, "manifest.json") as JsonObject;
@@ -156,9 +175,9 @@ public static class Backup
 
     private static JsonNode? Parse(ZipArchive zip, string name) => ReadText(zip, name) is { } text ? JsonNode.Parse(text) : null;
 
-    public static BackupSummary? Inspect(string zipPath, out string error)
+    public static BackupSummary? Inspect(string zipPath, out string error, string? password = null)
     {
-        var contents = Read(zipPath, out error);
+        var contents = Read(zipPath, out error, password);
         if (contents is null) return null;
         return new BackupSummary(contents.Created, contents.Version, RestorableSettings(contents.Settings).Count,
             contents.Memories.Count, contents.Routines.Count, contents.Reminders.Count,
@@ -179,9 +198,9 @@ public static class Backup
     }
 
     public static RestoreReport Restore(string zipPath, AppSettings settings, MemoryStore memory, RoutineStore routines,
-        ReminderStore reminders, string notesPath, Func<string, bool>? toolExists = null, PlanStore? plans = null)
+        ReminderStore reminders, string notesPath, Func<string, bool>? toolExists = null, PlanStore? plans = null, string? password = null)
     {
-        var contents = Read(zipPath, out var error) ?? throw new InvalidDataException(error);
+        var contents = Read(zipPath, out var error, password) ?? throw new InvalidDataException(error);
         var skipped = new List<string>();
 
         // Settings: only known names, each checked.

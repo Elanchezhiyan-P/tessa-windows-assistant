@@ -119,7 +119,6 @@ public partial class MainWindow
         if (resetModel)
         {
             _llm?.ClearHistory();
-            LlmClientBase.DeleteSavedContexts();
             _needSeed = true;
         }
         Messages.Children.Clear();

@@ -71,6 +71,11 @@ public sealed class AppSettings
     /// <summary>Also keep reminders the user set themselves quiet during quiet hours (they still wait in the chat). Off, so an alarm is never missed.</summary>
     public bool QuietOwnReminders { get; set; }
 
+    /// <summary>When you click another app the window shrinks to a small floating button instead of staying in the way.</summary>
+    public bool FloatWhenInactive { get; set; } = true;
+    public int? DockLeft { get; set; }
+    public int? DockTop { get; set; }
+
     /// <summary>Show a small floating countdown for a focus session or a reminder that is close.</summary>
     public bool MiniTimer { get; set; } = true;
     public int? MiniTimerLeft { get; set; }
@@ -88,6 +93,10 @@ public sealed class AppSettings
     public int MicrophoneDevice { get; set; } = -1;
     /// <summary>With Gemini selected, send each recorded phrase to Gemini to be turned into text (more accurate; the audio leaves the PC).</summary>
     public bool SpeechViaGemini { get; set; } = true;
+    /// <summary>Who understands the recording when it is sent to a cloud service: "auto" (the chosen model, if it can listen), "gemini", "openai" or "windows".</summary>
+    public string SpeechEngine { get; set; } = "auto";
+    /// <summary>The speech model to ask an OpenAI-compatible service for. Empty: whisper-1 (or the usual one for the service).</summary>
+    public string SpeechModel { get; set; } = "";
     /// <summary>Keep the last 100 pieces of text you copy, so you can ask "what was that link I copied?". Off by default: it records what you copy.</summary>
     public bool ClipboardHistory { get; set; }
     /// <summary>Show the daily briefing (reminders, weather, headlines) the first time the app starts each day.</summary>
@@ -114,6 +123,11 @@ public sealed class AppSettings
         "local" => "",
         _ => "Google's Gemini"
     };
+
+    /// <summary>The name of an OpenAI-compatible service (its host) regardless of which model is chosen.</summary>
+    public string CloudLabelFor(string provider) => provider == "openai"
+        ? Uri.TryCreate(OpenAiBaseUrl, UriKind.Absolute, out var uri) ? uri.Host : "the OpenAI-compatible service"
+        : provider == "claude" ? "Anthropic's Claude" : "Google's Gemini";
 
     /// <summary>A short description of the model in use, for "which model are you?" and diagnostics.</summary>
     [JsonIgnore] public string BrainDescription => Provider switch

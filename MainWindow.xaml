@@ -92,15 +92,17 @@
                                     <Border Background="{DynamicResource SegmentBack}" CornerRadius="11" Padding="3" HorizontalAlignment="Left" Margin="0,10,0,0">
                                         <StackPanel Orientation="Horizontal">
                                             <RadioButton x:Name="ProviderGemini" Style="{StaticResource Segment}"
-                                                         Content="Gemini (cloud)" GroupName="provider" Checked="Provider_Changed" />
+                                                         Content="Gemini" GroupName="provider" Checked="Provider_Changed" />
                                             <RadioButton x:Name="ProviderClaude" Style="{StaticResource Segment}"
                                                          Content="Claude" GroupName="provider" Checked="Provider_Changed" />
                                             <RadioButton x:Name="ProviderOpenAi" Style="{StaticResource Segment}"
                                                          Content="OpenAI-compatible" GroupName="provider" Checked="Provider_Changed" />
                                             <RadioButton x:Name="ProviderLocal" Style="{StaticResource Segment}"
-                                                         Content="Local (Qwen)" GroupName="provider" Checked="Provider_Changed" />
+                                                         Content="Local (on this PC)" GroupName="provider" Checked="Provider_Changed" />
                                         </StackPanel>
                                     </Border>
+                                    <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,8,0,0"
+                                               Text="Gemini, Claude and OpenAI-compatible are online services: your messages go to that company. Local runs on this PC and sends nothing out." />
 
                                     <StackPanel x:Name="GeminiGroup">
                                         <TextBlock Text="Gemini API key" Style="{StaticResource FieldLabel}" />
@@ -210,8 +212,20 @@
                                             Margin="0,4,0,0" ValueChanged="VoiceSpeed_Changed" AutomationProperties.Name="Speaking speed" />
                                     <Button Style="{StaticResource GhostButton}" Content="Hear this voice" HorizontalAlignment="Left"
                                             Margin="0,10,0,0" Click="PreviewVoice_Click" />
-                                    <CheckBox x:Name="GeminiSpeechSwitch" Style="{StaticResource Switch}" Margin="2,14,0,0"
-                                              Content="Use Gemini to understand my voice (much more accurate; sends the recording to Google)" />
+                                    <CheckBox x:Name="GeminiSpeechSwitch" Click="SpeechEngine_Checked" Style="{StaticResource Switch}" Margin="2,14,0,0"
+                                              Content="Use a cloud service to understand my voice (much more accurate; sends the recording to it)" />
+                                    <TextBlock Text="Which service" Style="{StaticResource FieldLabel}" />
+                                    <Border Background="{DynamicResource SegmentBack}" CornerRadius="11" Padding="3" HorizontalAlignment="Left">
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton x:Name="SpeechAuto" Checked="SpeechEngine_Checked" Style="{StaticResource Segment}" Content="Automatic" GroupName="speech" Tag="auto" />
+                                            <RadioButton x:Name="SpeechGemini" Checked="SpeechEngine_Checked" Style="{StaticResource Segment}" Content="Gemini" GroupName="speech" Tag="gemini" />
+                                            <RadioButton x:Name="SpeechOpenAi" Checked="SpeechEngine_Checked" Style="{StaticResource Segment}" Content="OpenAI-compatible" GroupName="speech" Tag="openai" />
+                                            <RadioButton x:Name="SpeechWindows" Checked="SpeechEngine_Checked" Style="{StaticResource Segment}" Content="Windows only" GroupName="speech" Tag="windows" />
+                                        </StackPanel>
+                                    </Border>
+                                    <TextBlock x:Name="SpeechEngineNote" Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,6,0,0" />
+                                    <TextBlock Text="Speech model for an OpenAI-compatible service (empty: whisper-1)" Style="{StaticResource FieldLabel}" />
+                                    <TextBox x:Name="SpeechModelBox" Style="{StaticResource Field}" MaxLength="60" />
                                     <TextBlock Text="Language she listens in (for example en-IN or en-US; empty uses Windows' setting)" Style="{StaticResource FieldLabel}" />
                                     <TextBox x:Name="SpeechLangBox" Style="{StaticResource Field}" MaxLength="12" />
                                     <TextBlock Text="Microphone" Style="{StaticResource FieldLabel}" />
@@ -326,7 +340,12 @@
 
                             <Border Background="{DynamicResource Surface}" CornerRadius="14" Padding="16,14,16,16" Margin="0,12,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="Floating timer" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Text="Floating button" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />
+                                    <CheckBox x:Name="FloatSwitch" Style="{StaticResource Switch}" Margin="2,12,0,0"
+                                              Content="Shrink to a small floating button when I click another app" />
+                                    <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,6,0,6"
+                                               Text="She never blocks what you are doing: click another app and she becomes a small button you can drag anywhere. A dot on it means she has something to tell you. Click it and the window comes back exactly as you left it. Pressing Esc or the close button hides her completely instead." />
+                                    <TextBlock Text="Floating timer" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" Margin="0,14,0,0" />
                                     <CheckBox x:Name="MiniTimerSwitch" Style="{StaticResource Switch}" Margin="2,12,0,0"
                                               Content="Show a small countdown on screen for focus sessions and reminders" />
                                     <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="2,6,0,0"
@@ -481,7 +500,7 @@
                                     </StackPanel>
                                     <TextBlock x:Name="AboutVersion" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,4,0,0" />
                                     <TextBlock Foreground="{DynamicResource Muted}" FontSize="12.5" TextWrapping="Wrap" Margin="0,10,0,0"
-                                               Text="A free, open-source AI companion for Windows. Works with Gemini or a local model." />
+                                               Text="A free, open-source AI companion for Windows. Works with Gemini, Claude, any OpenAI-compatible service, or a local model." />
 
                                     <TextBlock Text="Made by" Style="{StaticResource FieldLabel}" Margin="2,16,0,2" />
                                     <TextBlock Text="Elanchezhiyan P" Foreground="{DynamicResource Fg}" FontSize="14" FontWeight="SemiBold" />

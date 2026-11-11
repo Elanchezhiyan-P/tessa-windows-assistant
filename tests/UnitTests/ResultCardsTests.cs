@@ -233,3 +233,13 @@ public class ResultCardsTests
         Assert.Equal(0, buttons);
     }
 }
+
+public class InlineTextTests
+{
+    [Fact]
+    public void BoldMarksAreRemovedFromPlainText() =>
+        Assert.Equal("• 10 programs start with Windows.\n→ Type /startup", WinCompanion.UI.InlineText.Plain("**• 10 programs start with Windows.**\n→ Type `/startup`"));
+
+    [Fact]
+    public void TextWithoutMarksIsUnchanged() => Assert.Equal("a * b", WinCompanion.UI.InlineText.Plain("a * b"));
+}

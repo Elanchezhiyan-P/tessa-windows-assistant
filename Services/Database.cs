@@ -31,17 +31,65 @@ internal static class Database
         {
             if (_initialised != Path)
             {
-                CreateSchema(connection);
+                Migrate(connection);
                 _initialised = Path;
             }
         }
         return connection;
     }
 
-    private static void CreateSchema(SqliteConnection connection)
+    // ---- Schema versions -----------------------------------------------------------------------------
+    //
+    // The schema is a numbered list. A database remembers the number of the last step applied (SQLite's user_version), and on
+    // opening, every later step runs once, in order, inside one transaction (a step that fails changes nothing). To change the
+    // schema, ADD a step at the end with the next number; never edit or reorder a step that has shipped. Steps 1 to 3 are written
+    // so they are also safe on a database made before numbering existed (everything is "if not exists" or "if missing").
+
+    private static readonly (int Version, string Name, Action<SqliteConnection> Apply)[] Migrations =
+    [
+        (1, "messages, memories, clipboard, routines, reminders and the document index", c => Execute(c, BaseTables)),
+        (2, "named chats and pinned messages", AddNamedChats),
+        (3, "saved agent plans", c => Execute(c, AgentPlansTable))
+    ];
+
+    /// <summary>The numbers of the schema steps, in order.</summary>
+    internal static IReadOnlyList<int> MigrationVersions => Migrations.Select(m => m.Version).ToList();
+
+    /// <summary>The schema version this build creates.</summary>
+    internal static int LatestVersion => Migrations[^1].Version;
+
+    /// <summary>The version a database file is at (0 for one that was never numbered or does not exist).</summary>
+    internal static int ReadUserVersion(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA user_version";
+        return Convert.ToInt32(command.ExecuteScalar());
+    }
+
+    private static void Migrate(SqliteConnection connection)
     {
         Execute(connection, "PRAGMA journal_mode = WAL;");
-        Execute(connection, """
+        var current = ReadUserVersion(connection);
+        // A database written by a newer version is left exactly as it is.
+        foreach (var step in Migrations.Where(m => m.Version > current).OrderBy(m => m.Version))
+        {
+            Execute(connection, "BEGIN IMMEDIATE");
+            try
+            {
+                step.Apply(connection);
+                Execute(connection, $"PRAGMA user_version = {step.Version}");
+                Execute(connection, "COMMIT");
+            }
+            catch
+            {
+                try { Execute(connection, "ROLLBACK"); }
+                catch (SqliteException) { /* already rolled back */ }
+                throw;
+            }
+        }
+    }
+
+    private const string BaseTables = """
             CREATE TABLE IF NOT EXISTS messages (
                 id   INTEGER PRIMARY KEY AUTOINCREMENT,
                 role TEXT NOT NULL,
@@ -112,18 +160,6 @@ internal static class Database
                 text    TEXT NOT NULL
             );
             CREATE INDEX IF NOT EXISTS index_chunks_file ON index_chunks(file_id);
-            CREATE TABLE IF NOT EXISTS agent_plans (
-                name    TEXT PRIMARY KEY COLLATE NOCASE,
-                goal    TEXT NOT NULL,
-                steps   TEXT NOT NULL,
-                created TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS conversations (
-                id      INTEGER PRIMARY KEY AUTOINCREMENT,
-                title   TEXT NOT NULL,
-                created TEXT NOT NULL,
-                updated TEXT NOT NULL
-            );
             CREATE VIRTUAL TABLE IF NOT EXISTS index_fts USING fts5(text, content='index_chunks', content_rowid='id');
             CREATE TRIGGER IF NOT EXISTS index_chunks_ai AFTER INSERT ON index_chunks BEGIN
                 INSERT INTO index_fts(rowid, text) VALUES (new.id, new.text);
@@ -131,9 +167,27 @@ internal static class Database
             CREATE TRIGGER IF NOT EXISTS index_chunks_ad AFTER DELETE ON index_chunks BEGIN
                 INSERT INTO index_fts(index_fts, rowid, text) VALUES ('delete', old.id, old.text);
             END;
-            """);
+            """;
 
-        // Named chats and pinned messages (added in 2.2): existing messages become the first chat.
+    private const string AgentPlansTable = """
+            CREATE TABLE IF NOT EXISTS agent_plans (
+                name    TEXT PRIMARY KEY COLLATE NOCASE,
+                goal    TEXT NOT NULL,
+                steps   TEXT NOT NULL,
+                created TEXT NOT NULL
+            );
+""";
+
+    private static void AddNamedChats(SqliteConnection connection)
+    {
+        Execute(connection, """
+            CREATE TABLE IF NOT EXISTS conversations (
+                id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                title   TEXT NOT NULL,
+                created TEXT NOT NULL,
+                updated TEXT NOT NULL
+            );
+""");
         AddColumnIfMissing(connection, "messages", "conversation", "INTEGER NOT NULL DEFAULT 1");
         AddColumnIfMissing(connection, "messages", "pinned", "INTEGER NOT NULL DEFAULT 0");
         using (var first = connection.CreateCommand())

@@ -27,6 +27,7 @@ internal static class NativeMethods
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
     [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr hWnd, int index);
     public const int WsExNoActivate = 0x08000000;
+    [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr hWnd);
 
     [DllImport("user32.dll")] public static extern int SetWindowLong(IntPtr hWnd, int index, int value);
     /// <summary>2 = busy (full-screen app), 3 = full-screen Direct3D game, 4 = presentation mode.</summary>

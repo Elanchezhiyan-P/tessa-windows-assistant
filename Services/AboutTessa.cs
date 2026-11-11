@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 namespace WinCompanion.Services;
 
 /// <summary>
-/// Fixed answers to "who made you?" and "what can you do?". The app answers these itself, so a Gemini or local model never
+/// Fixed answers to "who made you?" and "what can you do?". The app answers these itself, so whichever model is behind her never
 /// describes itself as the assistant, and the answer is the same whichever model is selected.
 /// </summary>
 public static class AboutTessa
@@ -35,7 +35,7 @@ public static class AboutTessa
     public static bool IsFeaturesQuestion(string text) => text.Length <= MaxQuestionLength && FeaturesQuestion.IsMatch(text);
 
     public static string Version =>
-        Assembly.GetExecutingAssembly().GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "2.2.0";
+        Assembly.GetExecutingAssembly().GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "2.3.0";
 
     /// <param name="brain">How the current model is described, for example "Google Gemini" or "a local model (qwen2.5:3b)".</param>
     public static string About(string assistantName, string brain) =>
@@ -59,7 +59,10 @@ public static class AboutTessa
         • Chats: keep several named chats and come back to them (/chats, /new, /rename), and pin messages you want to find again (/pin, /pins).
         • AI choices: Gemini, Claude, any OpenAI-compatible service, or a local model (/model).
         • Floating timer: a small countdown for focus sessions and reminders that are close (/timer).
-        • Backup: settings, memory, routines, plans, reminders and notes in one file for a new PC (/backup, /restore).
+        • Backup: settings, memory, routines, plans, reminders and notes in one file for a new PC, locked with a password (/backup, /restore).
+        • Out of the way: click another app and I shrink to a small floating button with my icon; click it and I'm back as I was (/float).
+        • No AI model yet? I still open apps, change the volume, take screenshots, move windows and set reminders: just type them.
+        • Voice: Gemini, any OpenAI-compatible service, or Windows' own recogniser, so Claude and local users can talk to me too.
         • Memory: see and delete what I remember about you (/memory, or Settings, You and her).
         • Health nudges: water, posture, eye rest and stretching (/nudge); held during focus sessions.
         • Search your whole chat history (/search or Ctrl+F) and undo file moves and tidy-ups (/undo).

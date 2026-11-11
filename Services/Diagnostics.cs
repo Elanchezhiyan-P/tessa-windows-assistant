@@ -34,11 +34,22 @@ public static class Diagnostics
     {
         if (!string.IsNullOrEmpty(userProfile))
             text = Regex.Replace(text, Regex.Escape(userProfile), "%USERPROFILE%", RegexOptions.IgnoreCase);
-        if (userName is { Length: >= 3 })
-            text = Regex.Replace(text, @"(?<![\p{L}\p{N}])" + Regex.Escape(userName) + @"(?![\p{L}\p{N}])", "<user>", RegexOptions.IgnoreCase);
-        if (machineName is { Length: >= 3 })
-            text = Regex.Replace(text, @"(?<![\p{L}\p{N}])" + Regex.Escape(machineName) + @"(?![\p{L}\p{N}])", "<pc>", RegexOptions.IgnoreCase);
+        text = Hide(text, userName, "<user>");
+        text = Hide(text, machineName, "<pc>");
         return text;
+    }
+
+    // A name of three or more letters is replaced wherever it stands alone as a word. A one- or two-letter name ("Al", "J") would also
+    // match ordinary words, so it is replaced only where it is clearly a name: as a folder in a path, or after "user", "for", "by".
+    private static string Hide(string text, string? name, string replacement)
+    {
+        if (string.IsNullOrEmpty(name)) return text;
+        var escaped = Regex.Escape(name);
+        if (name.Length >= 3)
+            return Regex.Replace(text, @"(?<![\p{L}\p{N}])" + escaped + @"(?![\p{L}\p{N}])", replacement, RegexOptions.IgnoreCase);
+
+        text = Regex.Replace(text, @"(?<=[\\/])" + escaped + @"(?=[\\/:\s""'.,;)]|$)", replacement, RegexOptions.IgnoreCase);
+        return Regex.Replace(text, @"(?<=\b(?:user|users|for|by|as|account|name)[\s:=]+)" + escaped + @"(?![\p{L}\p{N}])", replacement, RegexOptions.IgnoreCase);
     }
 
     /// <summary>The last lines of crash.log, or null when there is none.</summary>

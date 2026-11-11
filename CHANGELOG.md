@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.3.0
+
+### New
+- **A floating button instead of a window in the way.** Click another app and she shrinks to a small round button with her icon; click it and the window returns exactly as it was. Drag it anywhere (it remembers), a dot says she has something to tell you, it hides for full-screen apps and games, and `/float off` turns it off. Esc and the close button still hide her completely.
+- **Basic commands with no AI model.** "open notepad", "volume up", "mute", "brightness 60", "dark mode", "take a screenshot", "minimize chrome", "snap chrome left", "close notepad", "lock my screen", "pause", "what time is it", "weather in Chennai" and more work without a key or a local server, through the same approved and logged tools. Real questions are never taken for commands, and a request she can't do now gets a message listing what still works instead of failing silently.
+- **Password-locked backups.** `/backup` and Settings ask for a password in a box (AES-256-GCM, key from PBKDF2-SHA256 with 600,000 rounds, tamper-evident); `/restore` asks for it, three tries. An empty password still saves a plain zip, with a warning.
+- **Voice for everyone.** Her recording of your voice can now be understood by Gemini, by any OpenAI-compatible speech service (whisper-1, Groq's whisper-large-v3-turbo...), or by Windows. Automatic follows your model when it can listen; Claude and local users send no audio anywhere unless they pick a service.
+
+### Changed
+- **The model's memory is no longer kept in several `context.*.json` files.** It is rebuilt from the open chat whenever a model starts, you switch model, or you open a chat; the old files are deleted on start.
+- **Numbered database upgrades.** The database schema is now a numbered list (SQLite `user_version`); each step runs once, in a transaction, so a failed upgrade changes nothing, and a database from a newer version is left alone. Existing 2.0 to 2.2 databases are brought forward safely.
+- Long labels on switches now wrap instead of being cut off.
+
+### Fixed
+- The diagnostics report now hides a one- or two-letter Windows user name where it appears as a folder in a path or after "user", "for" or "by" (it only hid names of three or more letters before), without damaging ordinary words.
+
+### Tests
+- 705 unit tests, including the new encryption, speech routing (against a fake service), basic commands (including what must *not* match), and redaction tests.
+- Not verified live: the floating button on a real desktop, the password box, Claude with a real key, and voice through a real speech service.
+
 ## 2.2.0
 
 ### New

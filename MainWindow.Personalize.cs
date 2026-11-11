@@ -40,6 +40,7 @@ public partial class MainWindow
             QuietOwnSwitch.IsChecked = _appSettings.QuietOwnReminders;
             HealthSwitch.IsChecked = _appSettings.HealthAlerts;
             MiniTimerSwitch.IsChecked = _appSettings.MiniTimer;
+            FloatSwitch.IsChecked = _appSettings.FloatWhenInactive;
             HealthNow.Text = HealthReport();
 
             _memoryClearArmed = false;
@@ -85,6 +86,7 @@ public partial class MainWindow
         _appSettings.QuietOwnReminders = QuietOwnSwitch.IsChecked == true;
         _appSettings.HealthAlerts = HealthSwitch.IsChecked == true;
         _appSettings.MiniTimer = MiniTimerSwitch.IsChecked == true;
+        _appSettings.FloatWhenInactive = FloatSwitch.IsChecked == true;
         UpdateMiniTimer();
 
         ApplyTheme(_appSettings.Theme, _appSettings.AccentColor, _appSettings.ColorMode);

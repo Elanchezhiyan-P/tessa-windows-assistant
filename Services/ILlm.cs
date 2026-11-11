@@ -75,8 +75,11 @@ public abstract class LlmClientBase : ILlm
     public abstract bool IsCloud { get; }
     public virtual void SeedHistory(IReadOnlyList<(string Role, string Text)> messages) { }
 
-    /// <summary>Remove every saved conversation context (used by "New chat").</summary>
-    public static void DeleteSavedContexts()
+    /// <summary>
+    /// Removes the conversation context files that versions before 2.3.0 kept. The model's memory is no longer saved: it is rebuilt from
+    /// the open chat's transcript whenever a model client starts, so there is nothing to keep in step.
+    /// </summary>
+    public static void DeleteLegacyContexts()
     {
         foreach (var name in ContextFiles)
         {

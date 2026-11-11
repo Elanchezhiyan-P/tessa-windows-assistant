@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Threading;
 using WinCompanion.Services;
 using WinCompanion.UI;
 
@@ -35,6 +36,14 @@ public partial class App : System.Windows.Application
         {
             new SetupWindow(saved).ShowDialog();
             firstRun = true;
+        }
+
+        // A small card in the corner while she loads (not on a first run, where the welcome has just been on screen).
+        StartupCard? card = null;
+        if (!firstRun)
+        {
+            card = new StartupCard(saved.AssistantName);
+            card.ShowInCorner();
         }
 
         _window = new MainWindow(new SettingsStore());
@@ -90,6 +99,9 @@ public partial class App : System.Windows.Application
 
         var pet = Array.IndexOf(e.Args, "--pet");
         if (pet >= 0 && pet + 1 < e.Args.Length) _window.PreviewPet(e.Args[pet + 1]);
+
+        // Everything is ready: let the card fade away.
+        if (card is not null) Dispatcher.BeginInvoke(card.Dismiss, DispatcherPriority.ApplicationIdle);
     }
 
     private static string TrayText() => $"{AppSettings.Current.AssistantName}  (Ctrl+Alt+Space, Ctrl+Alt+V to talk)";

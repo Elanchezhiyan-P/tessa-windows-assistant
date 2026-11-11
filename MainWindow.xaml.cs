@@ -52,8 +52,10 @@ public partial class MainWindow : Window
         ApplyIdentity();
         UpdateMuteButton();
 
+        LlmClientBase.DeleteLegacyContexts();
         InitChats();
         StartMiniTimer();
+        InitDock();
         foreach (var entry in _chat.Entries) Messages.Children.Add(ChatBubbles.Create(entry, animate: false));
         UpdateOlderButton();
         RefreshChatTitle();
@@ -74,9 +76,8 @@ public partial class MainWindow : Window
             SetListening(true);
             Status.Text = "";
         });
-        _voice.GeminiSpeechAvailable = () => _appSettings.SpeechViaGemini && _appSettings.UsesGemini
-                                             && !string.IsNullOrWhiteSpace(_settings.LoadApiKey());
-        _voice.GeminiTranscribe = async wav => await GeminiSpeech.TranscribeAsync(_settings.LoadApiKey()!, wav, _appSettings.SpeechLanguage);
+        _voice.GeminiSpeechAvailable = () => CurrentSpeech() != SpeechEngineKind.Windows;
+        _voice.GeminiTranscribe = TranscribeVoiceAsync;
         _voice.Notice += message => Dispatcher.Invoke(() =>
         {
             if (message.StartsWith("Understanding")) _listeningOrb.Label = message; else Status.Text = message;
@@ -183,12 +184,16 @@ public partial class MainWindow : Window
         MicBox.SelectedIndex = _appSettings.MicrophoneDevice >= 0 && _appSettings.MicrophoneDevice + 1 < MicBox.Items.Count
             ? _appSettings.MicrophoneDevice + 1 : 0;
         GeminiSpeechSwitch.IsChecked = _appSettings.SpeechViaGemini;
+        foreach (var r in new[] { SpeechAuto, SpeechGemini, SpeechOpenAi, SpeechWindows })
+            r.IsChecked = (string)r.Tag == SpeechRouting.Normalize(_appSettings.SpeechEngine);
+        SpeechModelBox.Text = _appSettings.SpeechModel;
+        UpdateSpeechNote();
         ClipboardHistorySwitch.IsChecked = _appSettings.ClipboardHistory;
         BriefingSwitch.IsChecked = _appSettings.BriefingAtStart;
         BriefingCityBox.Text = _appSettings.BriefingCity;
         BriefingTopicsBox.Text = _appSettings.BriefingTopics;
         AboutName.Text = _appSettings.AssistantName;
-        AboutVersion.Text = "Version " + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "2.2.0");
+        AboutVersion.Text = "Version " + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "2.3.0");
         ProfileName.Text = _appSettings.UserName;
         ProfileNick.Text = _appSettings.UserNickname;
         AssistantNameBox.Text = _appSettings.AssistantName;
@@ -212,6 +217,8 @@ public partial class MainWindow : Window
     private void OnClosing(object? sender, CancelEventArgs e)
     {
         e.Cancel = true;
+        _collapsedByFocus = false;
+        _dock?.Hide();
         _speaker.SpeakAsyncCancelAll();
         ResolveConfirm(false);
         if (_settingsOpen) RevertPersonalization(); // an unsaved theme or voice preview is dropped
@@ -418,6 +425,8 @@ public partial class MainWindow : Window
         _appSettings.SpeechLanguage = SpeechLangBox.Text.Trim();
         _appSettings.MicrophoneDevice = MicBox.SelectedIndex - 1; // item 0 is "Windows default"
         _appSettings.SpeechViaGemini = GeminiSpeechSwitch.IsChecked == true;
+        _appSettings.SpeechEngine = SelectedSpeechEngine();
+        _appSettings.SpeechModel = SpeechModelBox.Text.Trim();
         _appSettings.ClipboardHistory = ClipboardHistorySwitch.IsChecked == true;
         _appSettings.BriefingAtStart = BriefingSwitch.IsChecked == true;
         _appSettings.BriefingCity = BriefingCityBox.Text.Trim();
@@ -467,6 +476,7 @@ public partial class MainWindow : Window
         var entry = _chat.Append(new ChatEntry(role, text, DateTime.Now));
         Messages.Children.Add(ChatBubbles.Create(entry, animate));
         if (role == "user") RefreshChatTitle();
+        if (role is "assistant" or "error") NoteForDock();
         _historyOpen = true;
         _settingsOpen = false;
         RefreshLayout();
@@ -507,6 +517,16 @@ public partial class MainWindow : Window
         _speaker.SpeakAsyncCancelAll();
         StartNewChat();
     }
+
+    /// <summary>True when the chosen model can be used: a local server is assumed to be running, a cloud model needs its key.</summary>
+    private bool ModelReady() => _appSettings.Provider switch
+    {
+        "local" => true,
+        "claude" => !string.IsNullOrWhiteSpace(_settings.LoadApiKey("claude")),
+        "openai" => !string.IsNullOrWhiteSpace(_settings.LoadApiKey("openai"))
+                    || Uri.TryCreate(_appSettings.OpenAiBaseUrl, UriKind.Absolute, out var service) && service.IsLoopback,
+        _ => !string.IsNullOrWhiteSpace(_settings.LoadApiKey())
+    };
 
     // Builds the model client for the chosen provider, or opens Settings if it isn't usable yet.
     private ILlm? EnsureClient()
@@ -558,6 +578,7 @@ public partial class MainWindow : Window
         client.ToolFinished += result => Dispatcher.Invoke(() => AddMessage("tool", result));
         _ctx.Llm = client;
         _llm = client;
+        _needSeed = true; // a new client starts with an empty memory: it is rebuilt from the open chat
         SeedIfNeeded(client);
         return client;
     }
@@ -663,6 +684,30 @@ public partial class MainWindow : Window
             AddMessage("user", display);
             AddMessage("assistant", localReply);
             if (spoken) Speak(localReply);
+            return;
+        }
+
+        // The basics work with no AI model at all: "open notepad", "volume up", "take a screenshot"...
+        var hasModel = ModelReady();
+        if (BasicCommands.Parse(sendText ?? display, DateTime.Now, hasModel) is { } basic && _ctx.Executor is not null)
+        {
+            var basicReply = basic.Reply ?? await _ctx.Executor.RunAsync(basic.Tool!, basic.Args!);
+            // With a model set up, an unknown "open ..." is probably a real sentence: let the model have it.
+            if (!(hasModel && basic.Tool == "open_target" && basicReply.StartsWith("I couldn't find", StringComparison.Ordinal)))
+            {
+                AddMessage("user", display);
+                AddMessage("assistant", basicReply);
+                if (spoken) Speak(basicReply);
+                return;
+            }
+        }
+
+        // No model yet: say what still works instead of failing silently.
+        if (!hasModel)
+        {
+            AddMessage("user", display);
+            AddMessage("assistant", BasicCommands.OfflineHelp(_appSettings.AssistantName));
+            if (spoken) Speak("I need an AI model for that. Open settings to add one. I can still open apps, change the volume, and set reminders.");
             return;
         }
 

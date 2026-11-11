@@ -12,12 +12,12 @@
     <!-- Identity shown in file properties, Task Manager and the installer -->
     <AssemblyName>WinCompanion</AssemblyName>
     <Product>Tessa</Product>
-    <Description>A desktop AI companion: chat, voice, reminders and PC automation, with Gemini or a local model.</Description>
+    <Description>A desktop AI companion: chat, voice, reminders and PC automation, with Gemini, Claude, any OpenAI-compatible service, or a local model.</Description>
     <Company>Elanchezhiyan P</Company>
     <Authors>Elanchezhiyan P</Authors>
     <PackageProjectUrl>https://codebyelan.in</PackageProjectUrl>
     <Copyright>Copyright (c) 2026 Elanchezhiyan P</Copyright>
-    <Version>2.2.0</Version>
+    <Version>2.3.0</Version>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Nullable>enable</Nullable>
@@ -28,6 +28,10 @@
     <!-- The unit tests live in their own project; keep their files out of the app. -->
     <Compile Remove="tests\**" />
     <InternalsVisibleTo Include="WinCompanion.UnitTests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
   </ItemGroup>
 
   <ItemGroup>

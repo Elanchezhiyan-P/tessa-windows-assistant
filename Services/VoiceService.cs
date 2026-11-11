@@ -136,7 +136,7 @@ public sealed class VoiceService : IDisposable
         {
             Log($"gemini transcription failed: {ex.Message}");
             EndListening();
-            Notice?.Invoke("Couldn't reach Gemini to understand that (" + ex.Message + "). Try again.");
+            Notice?.Invoke("Couldn't get the words from the speech service (" + ex.Message + "). Try again.");
             return true;
         }
 

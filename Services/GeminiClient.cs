@@ -15,14 +15,12 @@ public sealed class GeminiClient : LlmClientBase
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(60) };
     private readonly JsonArray _history = new();
 
-    private static string ContextPath => AppPaths.FileIn("context.gemini.json");
 
     public GeminiClient(string apiKey, ToolRegistry tools, Func<string, Task<bool>> confirm, ActionLog log,
         MemoryStore memory, Func<ActiveAppInfo?> activeApp)
         : base(tools, confirm, log, memory, activeApp)
     {
         _http.DefaultRequestHeaders.Add("x-goog-api-key", apiKey);
-        LoadHistory();
     }
 
     // ---- Chat with tools -------------------------------------------------------------------
@@ -89,7 +87,6 @@ public sealed class GeminiClient : LlmClientBase
         finally
         {
             TrimHistory();
-            SaveHistory();
         }
     }
 
@@ -181,7 +178,6 @@ public sealed class GeminiClient : LlmClientBase
     public override void ClearHistory()
     {
         _history.Clear();
-        SaveHistory();
     }
 
     public override void SeedHistory(IReadOnlyList<(string Role, string Text)> messages)
@@ -194,7 +190,6 @@ public sealed class GeminiClient : LlmClientBase
                 ["parts"] = new JsonArray(new JsonObject { ["text"] = text })
             });
         TrimHistory();
-        SaveHistory();
     }
 
     private void TrimHistory()
@@ -207,20 +202,5 @@ public sealed class GeminiClient : LlmClientBase
     private static bool IsUserText(JsonNode? entry) =>
         entry?["role"]?.GetValue<string>() == "user" && entry["parts"]?[0]?["text"] is not null;
 
-    private void LoadHistory()
-    {
-        try
-        {
-            if (AtomicFile.ReadAllText(ContextPath, AtomicFile.IsJson) is { } json && JsonNode.Parse(json) is JsonArray saved)
-                foreach (var entry in saved) _history.Add(entry!.DeepClone());
-            TrimHistory();
-        }
-        catch (JsonException) { _history.Clear(); }
-    }
 
-    private void SaveHistory()
-    {
-        try { AtomicFile.WriteAllText(ContextPath, _history.ToJsonString()); }
-        catch (IOException) { }
-    }
 }

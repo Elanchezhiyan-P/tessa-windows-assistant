@@ -94,8 +94,10 @@ public partial class MainWindow
                 return SizeCommand(args);
             case "timer":
                 return TimerCommand(args);
+            case "float":
+                return FloatCommand(args);
             case "backup":
-                return BackupNow(args.Length > 0 ? args.Trim().Trim('"') : null);
+                return BackupCommand(args.Length > 0 ? args.Trim().Trim('"') : null);
             case "restore":
                 return await RestoreAsync(args);
             case "quiet":

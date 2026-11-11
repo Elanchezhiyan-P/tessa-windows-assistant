@@ -4,7 +4,7 @@ namespace WinCompanion.Services;
 
 /// <summary>
 /// Requests the app can answer on its own, with no AI model and no internet: setting, listing and cancelling
-/// reminders. Checked before anything is sent to Gemini or a local model, so they work offline and cost no quota.
+/// reminders. Checked before anything is sent to a model, so they work offline and cost no quota.
 /// </summary>
 public static class LocalCommands
 {

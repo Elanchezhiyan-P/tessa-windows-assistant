@@ -16,6 +16,8 @@ internal sealed class FakeChatServer : IDisposable
     private readonly Task _loop;
     public string BaseUrl { get; }
     public List<(string? Auth, JsonObject Body)> Requests { get; } = [];
+    /// <summary>The path and the raw text of each request, for requests that are not JSON (an audio upload).</summary>
+    public List<(string Path, string ContentType, string Raw)> Raw { get; } = [];
     public int Status { get; set; } = 200;
     public string Reply { get; set; } = """{"choices":[{"message":{"role":"assistant","content":"Hi there"}}]}""";
 
@@ -37,8 +39,11 @@ internal sealed class FakeChatServer : IDisposable
                 catch (Exception ex) when (ex is HttpListenerException or ObjectDisposedException) { return; }
                 using var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8);
                 var raw = await reader.ReadToEndAsync();
-                var body = (raw.Length > 0 ? JsonNode.Parse(raw) as JsonObject : null) ?? new JsonObject();
-                lock (Requests) Requests.Add((ctx.Request.Headers["Authorization"], body));
+                JsonObject? parsed = null;
+                try { parsed = raw.Length > 0 ? JsonNode.Parse(raw) as JsonObject : null; }
+                catch (System.Text.Json.JsonException) { /* not JSON: a form upload */ }
+                var body = parsed ?? new JsonObject();
+                lock (Requests) { Requests.Add((ctx.Request.Headers["Authorization"], body)); Raw.Add((ctx.Request.Url!.AbsolutePath, ctx.Request.ContentType ?? "", raw)); }
                 var bytes = Encoding.UTF8.GetBytes(Reply);
                 ctx.Response.StatusCode = Status;
                 ctx.Response.ContentType = "application/json";
@@ -60,49 +65,35 @@ public class OpenAiCompatibleTests : DatabaseTestBase
     private static LocalLlmClient Client(OpenAiEndpoint endpoint) =>
         new(endpoint, new ToolRegistry(), _ => Task.FromResult(true), new ActionLog(), new MemoryStore(), () => null);
 
-    private static OpenAiEndpoint Cloud(string url, string key, string file) =>
-        new(url, "some-model", "", key, true, file, "api.example.com");
-
-    private static string Unique() => $"context.test-{Guid.NewGuid():N}.json";
-
-    private static void Cleanup(string file) { try { File.Delete(AppPaths.FileIn(file)); } catch (IOException) { } }
+    private static OpenAiEndpoint Cloud(string url, string key) =>
+        new(url, "some-model", "", key, true, "api.example.com");
 
     [Fact]
     public async Task ACloudServiceGetsTheKeyAndNoTemperature()
     {
         using var server = new FakeChatServer();
-        var file = Unique();
-        try
-        {
-            var client = Client(Cloud(server.BaseUrl, "sk-secret-123", file));
-            var reply = await client.SendAsync("hello there");
+        var client = Client(Cloud(server.BaseUrl, "sk-secret-123"));
+        var reply = await client.SendAsync("hello there");
 
-            Assert.Equal("Hi there", reply);
-            Assert.True(client.IsCloud);
-            var (auth, body) = server.Requests.Single(r => r.Body["tools"] is not null || r.Body["messages"] is not null);
-            Assert.Equal("Bearer sk-secret-123", auth);
-            Assert.Null(body["temperature"]); // some hosted models reject the field
-            Assert.Equal("some-model", body["model"]!.GetValue<string>());
-        }
-        finally { Cleanup(file); }
+        Assert.Equal("Hi there", reply);
+        Assert.True(client.IsCloud);
+        var (auth, body) = server.Requests.Single(r => r.Body["tools"] is not null || r.Body["messages"] is not null);
+        Assert.Equal("Bearer sk-secret-123", auth);
+        Assert.Null(body["temperature"]); // some hosted models reject the field
+        Assert.Equal("some-model", body["model"]!.GetValue<string>());
     }
 
     [Fact]
     public async Task ALocalServerGetsNoKeyAndAFixedLowTemperature()
     {
         using var server = new FakeChatServer();
-        var file = Unique();
-        try
-        {
-            var client = Client(new OpenAiEndpoint(server.BaseUrl, "qwen", "", null, false, file, "the local model server"));
-            await client.SendAsync("hello there");
+        var client = Client(new OpenAiEndpoint(server.BaseUrl, "qwen", "", null, false, "the local model server"));
+        await client.SendAsync("hello there");
 
-            var (auth, body) = server.Requests.First();
-            Assert.Null(auth);
-            Assert.False(client.IsCloud);
-            Assert.NotNull(body["temperature"]);
-        }
-        finally { Cleanup(file); }
+        var (auth, body) = server.Requests.First();
+        Assert.Null(auth);
+        Assert.False(client.IsCloud);
+        Assert.NotNull(body["temperature"]);
     }
 
     [Theory]
@@ -114,46 +105,47 @@ public class OpenAiCompatibleTests : DatabaseTestBase
     public async Task ACloudFailureIsExplainedInPlainWords(int status, string expected)
     {
         using var server = new FakeChatServer { Status = status, Reply = """{"error":{"message":"nope"}}""" };
-        var file = Unique();
-        try
-        {
-            var client = Client(Cloud(server.BaseUrl, "sk-x", file));
-            var error = await Assert.ThrowsAsync<LlmException>(() => client.SendAsync("hello there"));
-            Assert.Contains(expected, error.Message);
-            Assert.Contains("api.example.com", error.Message);
-            Assert.DoesNotContain("sk-x", error.Message);
-        }
-        finally { Cleanup(file); }
+        var client = Client(Cloud(server.BaseUrl, "sk-x"));
+        var error = await Assert.ThrowsAsync<LlmException>(() => client.SendAsync("hello there"));
+        Assert.Contains(expected, error.Message);
+        Assert.Contains("api.example.com", error.Message);
+        Assert.DoesNotContain("sk-x", error.Message);
     }
 
     [Fact]
-    public async Task EachServiceKeepsItsOwnConversationFile()
+    public async Task AFreshClientStartsEmptyAndSeedingRestoresTheEarlierConversation()
     {
         using var server = new FakeChatServer();
-        var a = Unique();
-        var b = Unique();
-        try
-        {
-            await Client(Cloud(server.BaseUrl, "k", a)).SendAsync("first topic");
-            var second = Client(Cloud(server.BaseUrl, "k", b));
-            await second.SendAsync("other topic");
+        var client = Client(Cloud(server.BaseUrl, "k"));
+        await client.SendAsync("first topic");
+        var fresh = Client(Cloud(server.BaseUrl, "k")); // for example after restarting or switching model
+        await fresh.SendAsync("other topic");
+        Assert.DoesNotContain(server.Requests.Last().Body["messages"]!.AsArray(), m => m?["content"]?.ToString() == "first topic");
 
-            var last = server.Requests.Last().Body["messages"]!.AsArray();
-            Assert.DoesNotContain(last, m => m?["content"]?.ToString() == "first topic");
-            Assert.True(File.Exists(AppPaths.FileIn(a)) && File.Exists(AppPaths.FileIn(b)));
-        }
-        finally { Cleanup(a); Cleanup(b); }
+        var seeded = Client(Cloud(server.BaseUrl, "k"));
+        seeded.SeedHistory([("user", "earlier question"), ("assistant", "earlier answer")]);
+        await seeded.SendAsync("and now?");
+        var texts = server.Requests.Last().Body["messages"]!.AsArray().Select(m => m?["content"]?.ToString()).ToList();
+        Assert.Contains("earlier question", texts);
+        Assert.Contains("earlier answer", texts);
     }
 
     [Fact]
-    public void LocalDefaultsKeepTheOriginalContextFile()
+    public void NoConversationFileIsWrittenAnyMore()
+    {
+        var before = Directory.GetFiles(AppPaths.Dir, "context.*.json").Length;
+        using var server = new FakeChatServer();
+        Client(Cloud(server.BaseUrl, "k")).SendAsync("hello there").GetAwaiter().GetResult();
+        Assert.Equal(before, Directory.GetFiles(AppPaths.Dir, "context.*.json").Length);
+    }
+
+    [Fact]
+    public void EndpointsDescribeWhereRequestsGo()
     {
         var endpoint = LocalLlmClient.ForLocal(new AppSettings());
-        Assert.Equal("context.local.json", endpoint.ContextFile);
         Assert.False(endpoint.Cloud);
         Assert.Null(endpoint.ApiKey);
         var cloud = LocalLlmClient.ForOpenAi(new AppSettings { OpenAiBaseUrl = "https://api.groq.com/openai/v1" }, "k");
-        Assert.Equal("context.openai.json", cloud.ContextFile);
         Assert.Equal("api.groq.com", cloud.Label);
     }
 

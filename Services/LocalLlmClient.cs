@@ -9,7 +9,7 @@ namespace WinCompanion.Services;
 
 /// <summary>Where an OpenAI-compatible client sends its requests.</summary>
 /// <param name="Cloud">True for a hosted service (the key is sent, requests leave this PC); false for a server on this PC.</param>
-public sealed record OpenAiEndpoint(string BaseUrl, string Model, string VisionModel, string? ApiKey, bool Cloud, string ContextFile, string Label);
+public sealed record OpenAiEndpoint(string BaseUrl, string Model, string VisionModel, string? ApiKey, bool Cloud, string Label);
 
 /// <summary>
 /// A model behind any OpenAI-compatible /chat/completions server with tool calling: a local one (Ollama, LM Studio,
@@ -24,7 +24,6 @@ public sealed class LocalLlmClient : LlmClientBase
     private readonly JsonArray _history = new();
     private readonly string _baseUrl, _model, _visionModel, _apiKey, _label;
     private readonly bool _cloud;
-    private readonly string _contextPath;
 
     public LocalLlmClient(AppSettings settings, ToolRegistry tools, Func<string, Task<bool>> confirm, ActionLog log,
         MemoryStore memory, Func<ActiveAppInfo?> activeApp)
@@ -40,15 +39,13 @@ public sealed class LocalLlmClient : LlmClientBase
         _apiKey = endpoint.ApiKey ?? "";
         _cloud = endpoint.Cloud;
         _label = endpoint.Label;
-        _contextPath = AppPaths.FileIn(endpoint.ContextFile);
-        LoadHistory();
     }
 
     public static OpenAiEndpoint ForLocal(AppSettings settings) =>
-        new(settings.LocalBaseUrl, settings.LocalModel, settings.LocalVisionModel, null, false, "context.local.json", "the local model server");
+        new(settings.LocalBaseUrl, settings.LocalModel, settings.LocalVisionModel, null, false, "the local model server");
 
     public static OpenAiEndpoint ForOpenAi(AppSettings settings, string apiKey) =>
-        new(settings.OpenAiBaseUrl, settings.OpenAiModel, "", apiKey, true, "context.openai.json",
+        new(settings.OpenAiBaseUrl, settings.OpenAiModel, "", apiKey, true,
             Uri.TryCreate(settings.OpenAiBaseUrl, UriKind.Absolute, out var uri) ? uri.Host : "the OpenAI-compatible service");
 
     /// <summary>Ask the server which models it has (GET /models). Used by Settings to detect Qwen or to check a cloud key.</summary>
@@ -144,7 +141,6 @@ public sealed class LocalLlmClient : LlmClientBase
         finally
         {
             TrimHistory();
-            SaveHistory();
         }
     }
 
@@ -371,7 +367,6 @@ public sealed class LocalLlmClient : LlmClientBase
     public override void ClearHistory()
     {
         _history.Clear();
-        SaveHistory();
     }
 
     public override void SeedHistory(IReadOnlyList<(string Role, string Text)> messages)
@@ -379,7 +374,6 @@ public sealed class LocalLlmClient : LlmClientBase
         _history.Clear();
         foreach (var (role, text) in messages) _history.Add(new JsonObject { ["role"] = role, ["content"] = text });
         TrimHistory();
-        SaveHistory();
     }
 
     private void TrimHistory()
@@ -389,20 +383,5 @@ public sealed class LocalLlmClient : LlmClientBase
         while (_history.Count > 0 && _history[0]?["role"]?.GetValue<string>() != "user") _history.RemoveAt(0);
     }
 
-    private void LoadHistory()
-    {
-        try
-        {
-            if (AtomicFile.ReadAllText(_contextPath, AtomicFile.IsJson) is { } json && JsonNode.Parse(json) is JsonArray saved)
-                foreach (var entry in saved) _history.Add(entry!.DeepClone());
-            TrimHistory();
-        }
-        catch (JsonException) { _history.Clear(); }
-    }
 
-    private void SaveHistory()
-    {
-        try { AtomicFile.WriteAllText(_contextPath, _history.ToJsonString()); }
-        catch (IOException) { }
-    }
 }

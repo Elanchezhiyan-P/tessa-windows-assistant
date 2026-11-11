@@ -20,7 +20,6 @@ public sealed class ClaudeClient : LlmClientBase
     private readonly string _model;
     private readonly JsonArray _history = new();
 
-    private static string ContextPath => AppPaths.FileIn("context.claude.json");
 
     public ClaudeClient(string apiKey, AppSettings settings, ToolRegistry tools, Func<string, Task<bool>> confirm, ActionLog log,
         MemoryStore memory, Func<ActiveAppInfo?> activeApp)
@@ -28,7 +27,6 @@ public sealed class ClaudeClient : LlmClientBase
     {
         _api = new AnthropicClient { ApiKey = apiKey };
         _model = string.IsNullOrWhiteSpace(settings.ClaudeModel) ? AppSettings.DefaultClaudeModel : settings.ClaudeModel.Trim();
-        LoadHistory();
     }
 
     public override bool IsCloud => true;
@@ -93,7 +91,6 @@ public sealed class ClaudeClient : LlmClientBase
         finally
         {
             TrimHistory();
-            SaveHistory();
         }
     }
 
@@ -298,7 +295,6 @@ public sealed class ClaudeClient : LlmClientBase
     public override void ClearHistory()
     {
         _history.Clear();
-        SaveHistory();
     }
 
     public override void SeedHistory(IReadOnlyList<(string Role, string Text)> messages)
@@ -306,7 +302,6 @@ public sealed class ClaudeClient : LlmClientBase
         _history.Clear();
         foreach (var (role, text) in messages) _history.Add(new JsonObject { ["role"] = role, ["content"] = text });
         TrimHistory();
-        SaveHistory();
     }
 
     private void TrimHistory()
@@ -319,20 +314,5 @@ public sealed class ClaudeClient : LlmClientBase
     private static bool IsUserText(JsonNode? entry) =>
         entry?["role"]?.GetValue<string>() == "user" && entry["content"] is JsonValue;
 
-    private void LoadHistory()
-    {
-        try
-        {
-            if (AtomicFile.ReadAllText(ContextPath, AtomicFile.IsJson) is { } json && JsonNode.Parse(json) is JsonArray saved)
-                foreach (var entry in saved) _history.Add(entry!.DeepClone());
-            TrimHistory();
-        }
-        catch (JsonException) { _history.Clear(); }
-    }
 
-    private void SaveHistory()
-    {
-        try { AtomicFile.WriteAllText(ContextPath, _history.ToJsonString()); }
-        catch (IOException) { }
-    }
 }
